@@ -81,7 +81,6 @@ static const struct ispmdvec mdvec = {
 
 struct isp_sbussoftc {
 	ispsoftc_t	sbus_isp;
-	struct sbusdev	sbus_sd;
 	sdparam		sbus_dev;
 	struct scsipi_channel sbus_chan;
 	bus_space_tag_t	sbus_bustag;
@@ -96,7 +95,7 @@ struct isp_sbussoftc {
 
 static int isp_match(device_t, cfdata_t, void *);
 static void isp_sbus_attach(device_t, device_t, void *);
-CFATTACH_DECL(isp_sbus, sizeof (struct isp_sbussoftc),
+CFATTACH_DECL_NEW(isp_sbus, sizeof (struct isp_sbussoftc),
     isp_match, isp_sbus_attach, NULL, NULL);
 
 static int
@@ -120,9 +119,11 @@ isp_sbus_attach(device_t parent, device_t self, void *aux)
 {
 	int freq, ispburst, sbusburst;
 	struct sbus_attach_args *sa = aux;
-	struct isp_sbussoftc *sbc = (struct isp_sbussoftc *) self;
+	struct isp_sbussoftc *sbc = device_private(self);
 	struct sbus_softc *sbsc = device_private(parent);
 	ispsoftc_t *isp = &sbc->sbus_isp;
+
+	isp->isp_osinfo.dev = self;
 
 	printf(" for %s\n", sa->sa_name);
 
@@ -200,7 +201,6 @@ isp_sbus_attach(device_t parent, device_t self, void *aux)
 	/* Establish interrupt channel */
 	bus_intr_establish(sbc->sbus_bustag, sbc->sbus_pri, IPL_BIO,
 	    isp_sbus_intr, sbc);
-	sbus_establish(&sbc->sbus_sd, &sbc->sbus_isp.isp_osinfo.dev);
 
 	/*
 	 * Set up logging levels.
@@ -539,7 +539,8 @@ isp_sbus_dmateardown(ispsoftc_t *isp, XS_T *xs, uint32_t handle)
 	dmap = sbc->sbus_dmamap[isp_handle_index(handle)];
 
 	if (dmap->dm_nsegs == 0) {
-		panic("%s: DMA map not already allocated", device_xname(&isp->isp_osinfo.dev));
+		panic("%s: DMA map not already allocated",
+		    device_xname(isp->isp_osinfo.dev));
 		/* NOTREACHED */
 	}
 	bus_dmamap_sync(isp->isp_dmatag, dmap, 0,
