@@ -28,7 +28,7 @@
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/dev/isp/isp_freebsd.c 196008 2009-08-01 01:04:26Z mjacob $");
+__FBSDID("$FreeBSD: head/sys/dev/isp/isp_freebsd.c 200089 2009-12-04 03:34:12Z mjacob $");
 #include <dev/isp/isp_freebsd.h>
 #include <sys/unistd.h>
 #include <sys/kthread.h>
@@ -353,6 +353,11 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 			 * We should, but a bunch of things are currently broken,
 			 * so don't allow it.
 			 */
+			if (nr == ISP_ROLE_BOTH) {
+				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
+				retval = EINVAL;
+				break;
+			}
 			*(int *)addr = FCPARAM(isp, chan)->role;
 #ifdef	ISP_INTERNAL_TARGET
 			ISP_LOCK(isp);
@@ -4621,10 +4626,21 @@ isp_prt(isp, ISP_LOGALL, "Setting Channel %d wwns to 0x%jx 0x%jx", bus, fcp->isp
 				}
 				break;
 			case KNOB_ROLE_BOTH:
+#if 0
 				if (fcp->role != ISP_ROLE_BOTH) {
 					rchange = 1;
 					newrole = ISP_ROLE_BOTH;
 				}
+#else
+				/*
+				 * We don't really support dual role at present on FC cards.
+				 *
+				 * We should, but a bunch of things are currently broken,
+				 * so don't allow it.
+				 */
+				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
+				ccb->ccb_h.status = CAM_REQ_INVALID;
+#endif
 				break;
 			}
 			if (rchange) {

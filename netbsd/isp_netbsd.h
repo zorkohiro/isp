@@ -1,4 +1,4 @@
-/* $NetBSD: isp_netbsd.h,v 1.63 2007/10/19 11:59:54 ad Exp $ */
+/* $NetBSD: isp_netbsd.h,v 1.71 2010/01/11 01:33:22 mjacob Exp $ */
 /*
  * NetBSD Specific definitions for the Qlogic ISP Host Adapter
  */
@@ -44,7 +44,6 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/kthread.h>
 
 #include <sys/bus.h>
@@ -73,13 +72,14 @@
 #define	ISP_PLATFORM_VERSION_MINOR	0
 
 struct isposinfo {
-	struct device		dev;
+	device_t		dev;
 	struct scsipi_adapter   adapter;
 	struct scsipi_channel * chan;
 	bus_dma_tag_t		dmatag;
 	bus_dmamap_t		rqdmap;
 	bus_dmamap_t		rsdmap;
-	bus_dmamap_t		scdmap;	/* FC only */
+	bus_dmamap_t		scdmap;		/* FC only */
+	uint64_t 		wwns[256];	/* FC only */
 	int			splsaved;
 	int			mboxwaiting;
 	uint32_t		islocked;
@@ -219,7 +219,7 @@ default:							\
 #define	XS_CHANNEL(xs)		\
 	((int) (xs)->xs_periph->periph_channel->chan_channel)
 #define	XS_ISP(xs)		\
-	((void *)(xs)->xs_periph->periph_channel->chan_adapter->adapt_dev)
+	device_private((xs)->xs_periph->periph_channel->chan_adapter->adapt_dev)
 #define	XS_LUN(xs)		((int) (xs)->xs_periph->periph_lun)
 #define	XS_TGT(xs)		((int) (xs)->xs_periph->periph_target)
 #define	XS_CDBP(xs)		((uint8_t *) (xs)->cmd)
@@ -269,11 +269,13 @@ default:							\
 #define	DEFAULT_NODEWWN(isp, chan)	(isp)->isp_osinfo.wwn
 #define	DEFAULT_PORTWWN(isp, chan)	(isp)->isp_osinfo.wwn
 #define	ACTIVE_NODEWWN(isp, chan)				\
-	(isp)->isp_osinfo.wwn? (isp)->isp_osinfo.wwn :	\
-	FCPARAM(isp, chan)->isp_wwnn_nvram
+	((isp)->isp_osinfo.wwn? (isp)->isp_osinfo.wwn :	\
+	(FCPARAM(isp, chan)->isp_wwnn_nvram?		\
+	 FCPARAM(isp, chan)->isp_wwnn_nvram : 0x400000007F000008ull))
 #define	ACTIVE_PORTWWN(isp, chan)				\
-	(isp)->isp_osinfo.wwn? (isp)->isp_osinfo.wwn :	\
-	FCPARAM(isp, chan)->isp_wwpn_nvram
+	((isp)->isp_osinfo.wwn? (isp)->isp_osinfo.wwn :	\
+	(FCPARAM(isp, chan)->isp_wwpn_nvram?		\
+	 FCPARAM(isp, chan)->isp_wwpn_nvram : 0x400000007F000008ull))
 
 #if	_BYTE_ORDER == _BIG_ENDIAN
 #ifdef	ISP_SBUS_SUPPORTED
@@ -343,7 +345,7 @@ default:							\
 /*
  * isp_osinfo definitions, extensions and shorthand.
  */
-#define	isp_unit	isp_osinfo.dev.dv_unit
+#define	isp_unit	device_unit(isp_osinfo.dev)
 
 
 /*

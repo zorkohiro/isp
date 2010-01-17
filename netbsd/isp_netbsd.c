@@ -1,4 +1,4 @@
-/* $NetBSD: isp_netbsd.c,v 1.75 2007/07/09 21:00:36 ad Exp $ */
+/* $NetBSD: isp_netbsd.c,v 1.82 2010/01/11 01:33:22 mjacob Exp $ */
 /*
  * Platform (NetBSD) dependent common attachment code for Qlogic adapters.
  */
@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: isp_netbsd.c,v 1.75 2007/07/09 21:00:36 ad Exp $");
+__KERNEL_RCSID(0, "$NetBSD: isp_netbsd.c,v 1.82 2010/01/11 01:33:22 mjacob Exp $");
 
 #include <dev/ic/isp_netbsd.h>
 #include <dev/ic/isp_ioctl.h>
@@ -92,10 +92,12 @@ static int isp_fabric_hysteresis = 5;
 void
 isp_attach(struct ispsoftc *isp)
 {
+	device_t self = isp->isp_osinfo.dev;
 	int i;
+
 	isp->isp_state = ISP_RUNSTATE;
 
-	isp->isp_osinfo.adapter.adapt_dev = &isp->isp_osinfo.dev;
+	isp->isp_osinfo.adapter.adapt_dev = self;
 	isp->isp_osinfo.adapter.adapt_openings = isp->isp_maxcmds;
 	isp->isp_osinfo.loop_down_limit = 300;
 
@@ -118,7 +120,8 @@ isp_attach(struct ispsoftc *isp)
 	callout_setfunc(&isp->isp_osinfo.ldt, isp_ldt, isp);
 	if (IS_FC(isp)) {
 		if (kthread_create(PRI_NONE, 0, NULL, isp_fc_worker, isp,
-		    &isp->isp_osinfo.thread, "%s:fc_thrd", device_xname(&isp->isp_osinfo.dev))) {
+		    &isp->isp_osinfo.thread, "%s:fc_thrd",
+		    device_xname(self))) {
 			isp_prt(isp, ISP_LOGERR,
 			    "unable to create FC worker thread");
 			return;
@@ -154,14 +157,14 @@ isp_attach(struct ispsoftc *isp)
 	/*
          * Defer enabling mailbox interrupts until later.
          */
-        config_interrupts((device_t) isp, isp_config_interrupts);
+        config_interrupts(self, isp_config_interrupts);
 }
 
 static void
 isp_config_interrupts(device_t self)
 {
 	int i;
-        struct ispsoftc *isp = (struct ispsoftc *) self;
+        struct ispsoftc *isp = device_private(self);
 
         isp->isp_osinfo.mbox_sleep_ok = 1;
 
@@ -176,7 +179,7 @@ isp_config_interrupts(device_t self)
 	 * And attach children (if any).
 	 */
 	for (i = 0; i < isp->isp_osinfo.adapter.adapt_nchannels; i++) {
-		config_found((void *)isp, &isp->isp_osinfo.chan[i], scsiprint);
+		config_found(self, &isp->isp_osinfo.chan[i], scsiprint);
 	}
 }
 
@@ -205,7 +208,7 @@ static int
 ispioctl(struct scsipi_channel *chan, u_long cmd, void *addr, int flag,
 	struct proc *p)
 {
-	struct ispsoftc *isp = (void *)chan->chan_adapter->adapt_dev;
+	struct ispsoftc *isp = device_private(chan->chan_adapter->adapt_dev);
 	int nr, bus, retval = ENOTTY;
 
 	switch (cmd) {
@@ -621,6 +624,18 @@ ispcmd(struct ispsoftc *isp, XS_T *xs)
 
 	switch (isp_start(xs)) {
 	case CMD_QUEUED:
+		if (IS_FC(isp) && isp->isp_osinfo.wwns[XS_TGT(xs)] == 0) {
+			fcparam *fcp = FCPARAM(isp, XS_CHANNEL(xs));
+			int dbidx = fcp->isp_dev_map[XS_TGT(xs)] - 1;
+			device_t dev = xs->xs_periph->periph_dev;
+			
+			if (dbidx >= 0 && dev &&
+			    prop_dictionary_set_uint64(device_properties(dev),
+			    "port-wwn", fcp->portdb[dbidx].port_wwn) == TRUE) {
+				isp->isp_osinfo.wwns[XS_TGT(xs)] =
+				    fcp->portdb[dbidx].port_wwn;
+			}
+                }
 		if (xs->xs_control & XS_CTL_POLL) {
 			isp_polled_cmd_wait(isp, xs);
 			isp->isp_osinfo.mbox_sleep_ok = ombi;
@@ -681,7 +696,7 @@ ispcmd(struct ispsoftc *isp, XS_T *xs)
 static void
 isprequest(struct scsipi_channel *chan, scsipi_adapter_req_t req, void *arg)
 {
-	struct ispsoftc *isp = (void *)chan->chan_adapter->adapt_dev;
+	struct ispsoftc *isp = device_private(chan->chan_adapter->adapt_dev);
 
 	switch (req) {
 	case ADAPTER_REQ_RUN_XFER:
@@ -1503,7 +1518,7 @@ isp_prt(struct ispsoftc *isp, int level, const char *fmt, ...)
 	if (level != ISP_LOGALL && (level & isp->isp_dblev) == 0) {
 		return;
 	}
-	printf("%s: ", device_xname(&isp->isp_osinfo.dev));
+	printf("%s: ", device_xname(isp->isp_osinfo.dev));
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);
