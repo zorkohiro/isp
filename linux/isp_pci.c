@@ -490,12 +490,12 @@ isplinux_pci_release(struct Scsi_Host *host)
         isp->isp_rquest = NULL;
     }
     if (isp->isp_xflist) {
-        isp_kfree(isp->isp_xflist, isp->isp_osinfo.mcorig * sizeof (XS_T **));
+        isp_kfree(isp->isp_xflist, isp->isp_osinfo.mcorig * sizeof (isp_hdl_t));
         isp->isp_xflist = NULL;
     }
 #ifdef    ISP_TARGET_MODE
     if (isp->isp_tgtlist) {
-        isp_kfree(isp->isp_tgtlist, isp->isp_osinfo.mcorig * sizeof (void **));
+        isp_kfree(isp->isp_tgtlist, isp->isp_osinfo.mcorig * sizeof (isp_hdl_t));
         isp->isp_tgtlist = NULL;
     }
 #endif
@@ -668,8 +668,8 @@ isplinux_pci_init_one(struct Scsi_Host *host)
         pci_intx(pdev, 1);
 
         /*
-	 * enable MSI-X or MSI-X, but no MSI-X for the 2432
-	 */
+         * enable MSI-X or MSI-X, but no MSI-X for the 2432
+         */
         if (pdev->device != PCI_DEVICE_ID_QLOGIC_ISP2432 && pci_enable_msix(pdev, isp_msix, 3) == 0) {
             isp_pci->msix_enabled = 1;
             isp_pci->msix_vector[0] = isp_msix[0].vector;
@@ -1505,21 +1505,29 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 
     ISP_DROP_LK_SOFTC(isp);
     if (isp->isp_xflist == NULL) {
-        size_t amt = isp->isp_osinfo.mcorig * sizeof (XS_T **);
+        size_t amt = isp->isp_osinfo.mcorig * sizeof (isp_hdl_t);
         isp->isp_xflist = isp_kzalloc(amt, GFP_KERNEL);
         if (isp->isp_xflist == NULL) {
             isp_prt(isp, ISP_LOGERR, "unable to allocate xflist array");
             goto bad;
         }
+        for (amt = 0; amt < isp->isp_maxcmds - 1; amt++) {
+            isp->isp_xflist[amt].cmd = &isp->isp_xflist[amt+1];
+        }
+        isp->isp_xffree = isp->isp_xflist[amt];
     }
 #ifdef    ISP_TARGET_MODE
     if (isp->isp_tgtlist == NULL) {
-        size_t amt = isp->isp_osinfo.mcorig * sizeof (void **);
+        size_t amt = isp->isp_osinfo.mcorig * sizeof (isp_hdl_t);
         isp->isp_tgtlist = isp_kzalloc(amt, GFP_KERNEL);
         if (isp->isp_tgtlist == NULL) {
             isp_prt(isp, ISP_LOGERR, "unable to allocate tgtlist array");
             goto bad;
         }
+        for (amt = 0; amt < isp->isp_maxcmds - 1; amt++) {
+            isp->isp_tgtlist[amt].cmd = &isp->isp_tgtlist[amt+1];
+        }
+        isp->isp_tgtfree = isp->isp_tgtlist[amt];
     }
     if (IS_24XX(isp) && isp->isp_atioq == NULL) {
         dma_addr_t busaddr;
@@ -1590,12 +1598,12 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 
 bad:
     if (isp->isp_xflist) {
-        isp_kfree(isp->isp_xflist, isp->isp_osinfo.mcorig * sizeof (XS_T **));
+        isp_kfree(isp->isp_xflist, isp->isp_osinfo.mcorig * sizeof (isp_hdl_t));
         isp->isp_xflist = NULL;
     }
 #ifdef    ISP_TARGET_MODE
-    if (isp->isp_tgtlist) {
-        isp_kfree(isp->isp_tgtlist, isp->isp_osinfo.mcorig * sizeof (void **));
+        if (isp->isp_tgtlist) {
+        isp_kfree(isp->isp_tgtlist, isp->isp_osinfo.mcorig * sizeof (isp_hdl_t));
         isp->isp_tgtlist = NULL;
     }
     if (isp->isp_atioq) {

@@ -1,4 +1,4 @@
-/* $NetBSD: isp_sbus.c,v 1.70 2007/10/19 12:01:11 ad Exp $ */
+/* $NetBSD: isp_sbus.c,v 1.79 2009/09/17 16:28:12 tsutsui Exp $ */
 /*
  * SBus specific probe and attach routines for Qlogic ISP SCSI adapters.
  *
@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: isp_sbus.c,v 1.70 2007/10/19 12:01:11 ad Exp $");
+__KERNEL_RCSID(0, "$NetBSD: isp_sbus.c,v 1.79 2009/09/17 16:28:12 tsutsui Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -347,13 +347,17 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	if (isp->isp_rquest_dma)
 		return (0);
 
-	n = isp->isp_maxcmds * sizeof (XS_T *);
-	isp->isp_xflist = (XS_T **) malloc(n, M_DEVBUF, M_WAITOK);
+	n = isp->isp_maxcmds * sizeof (isp_hdl_t);
+	isp->isp_xflist = (isp_hdl_t *) malloc(n, M_DEVBUF, M_WAITOK);
 	if (isp->isp_xflist == NULL) {
 		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
 		return (1);
 	}
 	ISP_MEMZERO(isp->isp_xflist, n);
+	for (n = 0; n < isp->isp_maxcmds - 1; n++) {
+		isp->isp_xflist[n].cmd = &isp->isp_xflist[n+1];
+	}
+	isp->isp_xffree = isp->isp_xflist;
 	n = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
 	sbc->sbus_dmamap = (bus_dmamap_t *) malloc(n, M_DEVBUF, M_WAITOK);
 	if (sbc->sbus_dmamap == NULL) {
