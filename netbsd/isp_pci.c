@@ -1212,13 +1212,17 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		 */
 		dbound = 0;
 	}
-	len = isp->isp_maxcmds * sizeof (XS_T *);
-	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK);
+	len = isp->isp_maxcmds * sizeof (isp_hdl_t);
+	isp->isp_xflist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK);
 	if (isp->isp_xflist == NULL) {
 		isp_prt(isp, ISP_LOGERR, "cannot malloc xflist array");
 		return (1);
 	}
 	memset(isp->isp_xflist, 0, len);
+	for (len = 0; len < isp->isp_maxcmds - 1; len++) {
+		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
+	}
+	isp->isp_xffree = isp->isp_xflist;
 	len = isp->isp_maxcmds * sizeof (bus_dmamap_t);
 	pcs->pci_xfer_dmap = (bus_dmamap_t *) malloc(len, M_DEVBUF, M_WAITOK);
 	if (pcs->pci_xfer_dmap == NULL) {

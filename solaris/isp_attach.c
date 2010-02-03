@@ -894,7 +894,7 @@ isp_unattach(ispsoftc_t *isp)
 	}
 
         if (isp->isp_xflist) {
-		kmem_free(isp->isp_xflist, sizeof (XS_T **) * isp->isp_maxcmds);
+		kmem_free(isp->isp_xflist, sizeof (isp_hdl_t) * isp->isp_maxcmds);
 		isp->isp_xflist = NULL;
 	}
 

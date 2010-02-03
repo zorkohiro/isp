@@ -235,15 +235,15 @@ isplinux_proc_info(struct Scsi_Host *shp, char *buf, char **st, off_t off, int l
         isp->isp_osinfo.hiwater, ISP_QAVAIL(isp),
         isp->isp_osinfo.wqhiwater);
     for (i = 0; i < isp->isp_maxcmds; i++) {
-        if (isp->isp_xflist[i]) {
-            copy_info(&info, " %d:%p", i, isp->isp_xflist[i]);
+        if (isp->isp_xflist[i].cmd) {
+            copy_info(&info, " %d:%p", i, isp->isp_xflist[i].cmd);
         }
     }
 #ifdef  ISP_TARGET_MODE
     copy_info(&info, "\n");
     for (i = 0; i < isp->isp_maxcmds; i++) {
-        if (isp->isp_tgtlist[i]) {
-            copy_info(&info, " %d:%p", i, isp->isp_tgtlist[i]);
+        if (isp->isp_tgtlist[i].cmd) {
+            copy_info(&info, " %d:%p", i, isp->isp_tgtlist[i].cmd);
         }
     }
 #endif

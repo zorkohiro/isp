@@ -70,12 +70,16 @@ isp_mbxdma_setup(ispsoftc_t *isp)
 		return(0);
 	}
 
-	len = sizeof (XS_T **) * isp->isp_maxcmds;
-	isp->isp_xflist = (XS_T **) kmem_zalloc(len, KM_SLEEP);
+	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
+	isp->isp_xflist = (isp_hdl_t *) kmem_zalloc(len, KM_SLEEP);
 	if (isp->isp_xflist == NULL) {
 		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
 		return(1);
 	}
+	for (len = 0; len < isp->isp_maxcmds - 1; len++) {
+		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
+	}
+	isp->isp_xffree = isp->isp_xfflist;
 
 	/*
 	 * Force alignment of the request/response
