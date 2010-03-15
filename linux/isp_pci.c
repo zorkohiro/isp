@@ -1514,7 +1514,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
         for (amt = 0; amt < isp->isp_maxcmds - 1; amt++) {
             isp->isp_xflist[amt].cmd = &isp->isp_xflist[amt+1];
         }
-        isp->isp_xffree = isp->isp_xflist[amt];
+        isp->isp_xffree = isp->isp_xflist;
     }
 #ifdef    ISP_TARGET_MODE
     if (isp->isp_tgtlist == NULL) {
@@ -1527,7 +1527,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
         for (amt = 0; amt < isp->isp_maxcmds - 1; amt++) {
             isp->isp_tgtlist[amt].cmd = &isp->isp_tgtlist[amt+1];
         }
-        isp->isp_tgtfree = isp->isp_tgtlist[amt];
+        isp->isp_tgtfree = isp->isp_tgtlist;
     }
     if (IS_24XX(isp) && isp->isp_atioq == NULL) {
         dma_addr_t busaddr;
@@ -1859,7 +1859,7 @@ isp_pci_dmateardown(ispsoftc_t *isp, Scsi_Cmnd *Cmnd, uint32_t handle)
      * The argument passed may not be a Cmnd pointer- this is the
      * safest way to keep the two w/o redoing our internal apis.
      */
-    if (IS_TARGET_HANDLE(handle)) {
+    if (ISP_VALID_TGT_HANDLE(isp, handle)) {
         struct isp_pcisoftc *pcs = (struct isp_pcisoftc *)isp;
         tmd_xact_t *xact = (tmd_xact_t *) Cmnd;
         tmd_cmd_t *tmd = xact? xact->td_cmd : NULL;

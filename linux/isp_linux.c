@@ -1666,7 +1666,7 @@ isp_target_start_ctio(ispsoftc_t *isp, tmd_xact_t *xact)
         goto out;
     }
 
-    if (isp_save_xs_tgt(isp, xact, &handle)) {
+    if (isp_allocate_xs_tgt(isp, xact, &handle)) {
         isp_prt(isp, ISP_LOGERR, "%s: No XFLIST pointers", __func__);
         xact->td_error = -ENOMEM;
         goto out;
