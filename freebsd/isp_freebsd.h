@@ -1,4 +1,3 @@
-/* $FreeBSD: head/sys/dev/isp/isp_freebsd.h 200089 2009-12-04 03:34:12Z mjacob $ */
 /*-
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
  *

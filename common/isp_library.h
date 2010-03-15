@@ -1,4 +1,3 @@
-/* $Id: isp_library.h,v 1.35 2009/05/10 16:25:09 mjacob Exp $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.

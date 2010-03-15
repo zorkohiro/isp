@@ -1,4 +1,3 @@
-/* $Id: isp_target.c,v 1.88 2009/08/08 19:46:31 mjacob Exp $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.

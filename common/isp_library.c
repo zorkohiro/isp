@@ -1,4 +1,3 @@
-/* $Id: isp_library.c,v 1.63 2009/08/08 19:46:31 mjacob Exp $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
@@ -677,7 +676,7 @@ isp_clear_commands(ispsoftc_t *isp)
 #ifdef	ISP_TARGET_MODE
 	for (tmp = 0; isp->isp_tgtlist && tmp < isp->isp_maxcmds; tmp++) {
 		uint8_t local[QENTRY_LEN];
-		hdp = &isp->isp_tgt_xflist[tmp];
+		hdp = &isp->isp_tgtlist[tmp];
 		if (hdp->handle == ISP_HANDLE_FREE) {
 			continue;
 		}
@@ -695,7 +694,7 @@ isp_clear_commands(ispsoftc_t *isp)
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		} else {
 			ct_entry_t *ctio = (ct_entry_t *) local;
-			ctio->ct_syshandle = handle & 0xffff;
+			ctio->ct_syshandle = hdp->handle & 0xffff;
 			ctio->ct_status = CT_HBA_RESET & 0xff;
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 		}
@@ -2302,7 +2301,7 @@ isp_find_tgt_handle(ispsoftc_t *isp, void *xs)
 void
 isp_destroy_tgt_handle(ispsoftc_t *isp, uint32_t handle)
 {
-	if (!ISP_VALID_TGT_HANDLE(handle)) {
+	if (!ISP_VALID_TGT_HANDLE(isp, handle)) {
 		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 	} else {
 		isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)].handle = ISP_HANDLE_FREE;

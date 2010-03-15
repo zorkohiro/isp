@@ -1,4 +1,3 @@
-/* $Id: isp_tpublic.h,v 1.47 2009/09/19 20:34:08 mjacob Exp $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.

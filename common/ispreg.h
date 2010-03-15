@@ -1,4 +1,3 @@
-/* $Id: ispreg.h,v 1.31 2009/03/30 04:19:20 mjacob Exp $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.

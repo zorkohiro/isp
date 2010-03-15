@@ -1,4 +1,3 @@
-/* $Id: isp_stds.h,v 1.17 2009/09/19 20:34:07 mjacob Exp $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
