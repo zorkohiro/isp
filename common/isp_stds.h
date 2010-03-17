@@ -172,7 +172,7 @@ typedef struct {
 #define	FCP_SNSLEN_VALID		0x02
 #define	FCP_RSPLEN_VALID		0x01
 
-#define FCP_MAX_RSPLEN 0x8
+#define FCP_MAX_RSPLEN			0x08
 /*
  * FCP Response Code Definitions
  * Source: NCITS T10, Project 1144D, Revision 08 (aka FCP2r08)
