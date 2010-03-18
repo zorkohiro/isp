@@ -1158,7 +1158,7 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *
         return (1);
     case ISPR2HST_RIO_16:
         *isrp = r2hisr & 0xffff;
-        *mbox0p = ASYNC_RIO1;
+        *mbox0p = ASYNC_RIO16_1;
         *semap = 1;
         return (1);
     case ISPR2HST_FPOST:
