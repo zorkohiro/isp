@@ -308,7 +308,7 @@ decode_rqst7(uint8_t *buf)
 	DOOF(t7, req_reserved);
 	DOOB(req_lun);
 	for (i = 0; i < 8; i++) {
-		printf(" 0x%02x", t7->req_cdb[i]);
+		printf(" 0x%02x", t7->req_lun[i]);
 	}
 	putchar('\n');
 	DOOF(t7, req_alen_datadir);
