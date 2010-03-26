@@ -4758,18 +4758,41 @@ isp_prt(ispsoftc_t *isp, int level, const char *fmt, ...)
         prefl = KERN_WARNING "%s: ";
     } else if (level & ISP_LOGERR) {
         prefl = KERN_ERR "%s: ";
-    } else if (level & (ISP_LOGTDEBUG0|ISP_LOGTDEBUG1|ISP_LOGTDEBUG2)) {
-        prefl = KERN_DEBUG "%s: ";
     } else if (level & (ISP_LOGDEBUG0|ISP_LOGDEBUG1|ISP_LOGDEBUG2|ISP_LOGDEBUG3)) {
         prefl = KERN_DEBUG "%s: ";
     } else {
-        prefl = "%s: ";
+        prefl = KERN_INFO "%s: ";
     }
     printk(prefl, isp->isp_name);
     va_start(ap, fmt);
     vsnprintf(buf, sizeof (buf), fmt, ap);
     va_end(ap);
     printk("%s\n", buf);
+}
+
+void
+isp_xs_prt(ispsoftc_t *isp, XS_T *xs, int level, const char *fmt, ...)
+{
+    char buf[256];
+    va_list ap;
+
+    if (level != ISP_LOGALL && (level & isp->isp_dblev) == 0) {
+        return;
+    }
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof (buf), fmt, ap);
+    va_end(ap);
+    if (level & (ISP_LOGTINFO|ISP_LOGINFO|ISP_LOGCONFIG|ISP_LOGSANCFG)) {
+        scmd_printk(KERN_INFO, xs, "%s\n", buf);
+    } else if (level & ISP_LOGWARN) {
+        scmd_printk(KERN_WARNING, xs, "%s\n", buf);
+    } else if (level & ISP_LOGERR) {
+        scmd_printk(KERN_ERR, xs, "%s\n", buf);
+    } else if (level & (ISP_LOGDEBUG0|ISP_LOGDEBUG1|ISP_LOGDEBUG2|ISP_LOGDEBUG3)) {
+        scmd_printk(KERN_DEBUG, xs, "%s\n", buf);
+    } else {
+        scmd_printk(KERN_INFO, xs, "%s\n", buf);
+    }
 }
 
 #ifndef    ISP_LICENSE
