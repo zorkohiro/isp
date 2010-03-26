@@ -474,7 +474,7 @@ struct isposinfo {
 #define REPORT_LUNS 0xa0
 #endif
 
-#define XS_T                Scsi_Cmnd
+#define XS_T                struct scsi_cmnd
 #define XS_DMA_ADDR_T       dma_addr_t
 #define XS_GET_DMA64_SEG    isp_get_dma64_seg
 #define XS_GET_DMA_SEG      isp_get_dma_seg
@@ -509,6 +509,8 @@ struct isposinfo {
 #define XS_SNSP(Cmnd)       (Cmnd)->sense_buffer
 #define XS_SNSLEN(Cmnd)     SCSI_SENSE_BUFFERSIZE
 #define XS_SNSKEY(Cmnd)     (XS_SNSP(Cmnd)[2] & 0xf)
+#define XS_SNSASC(Cmnd)     (XS_SNSP(Cmnd)[12])
+#define XS_SNSASCQ(Cmnd)    (XS_SNSP(Cmnd)[13])
 #define XS_TAG_P(Cmnd)      (Cmnd->device->tagged_supported != 0)
 #define XS_TAG_TYPE         isplinux_tagtype
 
@@ -534,9 +536,11 @@ struct isposinfo {
 
 #define XS_NOERR(xs)    host_byte((xs)->result) == DID_OK
 
-#define XS_INITERR(xs)  (xs)->result = 0, (xs)->SCp.Status = 0
+#define XS_INITERR(xs)  (xs)->result = 0, (xs)->SCp.Status = 0, (xs)->SCp.have_data_in = 0
 
-#define XS_SAVE_SENSE(Cmnd, s, l)   memcpy(XS_SNSP(Cmnd), s, min(XS_SNSLEN(Cmnd), l))
+#define XS_SAVE_SENSE(Cmnd, s, l)   memcpy(XS_SNSP(Cmnd), s, min(XS_SNSLEN(Cmnd), l)), (Cmnd)->SCp.have_data_in = 1
+
+#define XS_SENSE_VALID(Cmnd)        ((Cmnd)->SCp.have_data_in != 0)
 
 #define XS_SET_STATE_STAT(a, b, c)
 
@@ -596,10 +600,11 @@ struct isposinfo {
 
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 void isp_prt(ispsoftc_t *, int level, const char *, ...) __attribute__((__format__(__printf__, 3, 4)));
+void isp_xs_prt(ispsoftc_t *, XS_T *, int level, const char *, ...) __attribute__((__format__(__printf__, 4, 5)));
 #else
 void isp_prt(ispsoftc_t *, int level, const char *, ...);
+void isp_xs_prt(ispsoftc_t *, XS_T *, int level, const char *, ...);
 #endif
-
 
 /*
  * isp_osinfo definitions, extensions and shorthand.
