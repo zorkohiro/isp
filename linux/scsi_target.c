@@ -334,7 +334,7 @@ static int scsi_target_endis(char *, uint64_t, int, int, int);
  */
 #define INQ_SIZE    36
 static uint8_t inqdata[INQ_SIZE] = {
-    DEFAULT_DEVICE_TYPE, 0x0, 0x2, 0x2, 32, 0, 0, 0x32,
+    DEFAULT_DEVICE_TYPE, 0x0, 0x5, 0x2, 32, 0, 0, 0x32,
     'L', 'I', 'N', 'U', 'X', ' ', ' ', ' ',
     'S', 'C', 'S', 'I', ' ', 'M', 'E', 'M',
     'O', 'R', 'Y', ' ', 'D', 'I', 'S', 'K',
@@ -2402,11 +2402,7 @@ scsi_target_endis(char *hba_name_unit, uint64_t nbytes, int chan, int lun, int e
     }
     memset(&ec, 0, sizeof (ec));
     ec.en_hba = bp->h.r_identity;
-    if (bp->h.r_type == R_FC) {
-        ec.en_lun = LUN_ANY;
-    } else {
-        ec.en_lun = lun;
-    }
+    ec.en_lun = lun;
     ec.en_chan = chan;
     ec.en_private = &rsem;
     sema_init(&rsem, 0);

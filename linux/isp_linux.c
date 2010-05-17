@@ -1268,16 +1268,16 @@ isp_taction(qact_e action, void *arg)
                 cto->ct_flags = CT7_SENDSTATUS|CT7_NOACK|CT7_NO_DATA|CT7_FLAG_MODE1;
                 cto->ct_flags |= (aep->at_ta_len >> 12) << CT7_TASK_ATTR_SHIFT;
 
-		/* set response */
-		cto->ct_scsi_status = (FCP_RSPLEN_VALID << 8);
-		cto->rsp.m1.ct_resplen = FCP_MAX_RSPLEN;
-		ISP_MEMZERO(cto->rsp.m1.ct_resp, FCP_MAX_RSPLEN);
-		cto->rsp.m1.ct_resp[3] = ins->tmf_resp;
-		isp_prt(isp, ISP_LOGINFO, "[%llx] TMF response. status %d",
-			(ull)ins->notify.nt_tagval, ins->tmf_resp);
-		WARN_ON(isp_target_put_entry(isp, &local)); /* XXX FIX ME XXX */
-		break;
-	}
+                /* set response */
+                cto->ct_scsi_status = (FCP_RSPLEN_VALID << 8);
+                cto->rsp.m1.ct_resplen = FCP_MAX_RSPLEN;
+                ISP_MEMZERO(cto->rsp.m1.ct_resp, FCP_MAX_RSPLEN);
+                cto->rsp.m1.ct_resp[3] = ins->tmf_resp;
+                isp_prt(isp, ISP_LOGINFO, "[%llx] TMF response. status %d",
+                (ull)ins->notify.nt_tagval, ins->tmf_resp);
+                WARN_ON(isp_target_put_entry(isp, &local)); /* XXX FIX ME XXX */
+                break;
+            }
 
             /*
              * This case is for a responding to an ABTS frame
@@ -2667,7 +2667,7 @@ out:
     if (lun == LUN_ANY) {
         isp_prt(isp, ISP_LOGINFO, "All luns now enabled for target mode on channel %d", bus);
     } else {
-        isp_prt(isp, ISP_LOGINFO, "lun %u now disabled for target mode on channel %d", lun, bus);
+        isp_prt(isp, ISP_LOGINFO, "lun %u now enabled for target mode on channel %d", lun, bus);
     }
 
     /*
