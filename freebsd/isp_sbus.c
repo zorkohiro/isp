@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/dev/isp/isp_sbus.c 205236 2010-03-17 02:48:14Z mjacob $");
+__FBSDID("$FreeBSD: head/sys/dev/isp/isp_sbus.c 207579 2010-05-03 18:39:40Z marius $");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -41,8 +41,10 @@ __FBSDID("$FreeBSD: head/sys/dev/isp/isp_sbus.c 205236 2010-03-17 02:48:14Z mjac
 #include <sys/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
+#include <machine/ofw_machdep.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 #include <sparc64/sbus/sbusvar.h>
@@ -264,11 +266,7 @@ isp_sbus_attach(device_t dev)
 		isp->isp_confopts |= ISP_CFG_OWNLOOPID;
 	}
 	if (default_id == -1) {
-		/*
-		 * XXX: should be a way to get properties w/o having
-		 * XXX: to call OF_xxx functions
-		 */
-		default_id = 7;
+		default_id = OF_getscsinitid(dev);
 	}
 	ISP_SPI_PC(isp, 0)->iid = default_id;
 
