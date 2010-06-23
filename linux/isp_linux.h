@@ -79,13 +79,11 @@
 #define UNUSED_PARAMETER(x) (void) x
 #endif
 
-#include <linux/autoconf.h>
 #ifdef  CONFIG_SMP
 #define __SMP__ 1
 #endif
 
 #include <linux/module.h>
-#include <linux/autoconf.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/blkdev.h>
