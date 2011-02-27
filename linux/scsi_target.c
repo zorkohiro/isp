@@ -67,10 +67,7 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 
-#ifdef  min
-#undef  min
-#endif
-#define min(a,b) (((a)<(b))?(a):(b))
+#define STGT_MIN(a,b) (((a)<(b))?(a):(b))
 #ifndef roundup
 #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
 #endif
@@ -752,7 +749,7 @@ scsi_target_start_cmd(tmd_cmd_t *tmd, int from_intr)
                 xact->td_hflags |= TDFH_STSVALID;
                 goto doit;
             }
-            len = min(tmd->cd_totlen, tmd->cd_cdb[4]);
+            len = STGT_MIN(tmd->cd_totlen, tmd->cd_cdb[4]);
 
             addr = scsi_target_kzalloc(SGS_SIZE, GFP_KERNEL|GFP_ATOMIC);
             if (addr == NULL) {
@@ -767,13 +764,13 @@ scsi_target_start_cmd(tmd_cmd_t *tmd, int from_intr)
                 int i, j;
                 switch (vpdcd) {
                 case 0:     /* Supported VPD Pages */
-                    len = min(sizeof(vp0data), len);
+                    len = STGT_MIN(sizeof(vp0data), len);
                     if (len) {
                         memcpy(addr, vp0data, len);
                     }
                     break;
                 case 0x80:  /* Unit Serial Number */
-                    len = min(sizeof(vp80data), len);
+                    len = STGT_MIN(sizeof(vp80data), len);
                     if (len) {
                         memcpy(addr, vp80data, len);
                         snprintf(&buf[4], sizeof (vp80data) - 4, "FERAL0LUN%06dSER%s", L0LUN_TO_FLATLUN(tmd->cd_lun), SERNO);
@@ -790,7 +787,7 @@ scsi_target_start_cmd(tmd_cmd_t *tmd, int from_intr)
                     }
                     break;
                 case 0x83:  /* Device Identification */
-                    len = min(sizeof(vp83data), len);
+                    len = STGT_MIN(sizeof(vp83data), len);
                     if (len) {
                         memcpy(addr, vp83data, len);
                         for (j = 8, i = 56; i >= 0; i -= 8, j++) {
@@ -805,7 +802,7 @@ scsi_target_start_cmd(tmd_cmd_t *tmd, int from_intr)
                     goto doit;
                 }
             } else {
-                len = min(sizeof(inqdata), len);
+                len = STGT_MIN(sizeof(inqdata), len);
                 if (len) {
                     memcpy(addr, inqdata, len);
                 }
@@ -838,8 +835,8 @@ scsi_target_start_cmd(tmd_cmd_t *tmd, int from_intr)
     if (tmd->cd_cdb[0] == REQUEST_SENSE) {
         struct scatterlist *dp = NULL;
         xact->td_xfrlen = TMD_SENSELEN;
-        xact->td_xfrlen = min(tmd->cd_cdb[4], xact->td_xfrlen);
-        xact->td_xfrlen = min(tmd->cd_totlen, xact->td_xfrlen);
+        xact->td_xfrlen = STGT_MIN(tmd->cd_cdb[4], xact->td_xfrlen);
+        xact->td_xfrlen = STGT_MIN(tmd->cd_totlen, xact->td_xfrlen);
         if (xact->td_xfrlen != 0) {
             if (from_intr) {
                 scsi_cmd_sched_restart(tmd, "REQUEST_SENSE");
@@ -916,8 +913,8 @@ scsi_target_start_cmd(tmd_cmd_t *tmd, int from_intr)
                 rpa[3] = (nluns << 3);
 
                 dp = SGS_SGP(addr);
-                lim = min(lim, tmd->cd_totlen);
-                lim = min(lim, (nluns << 3) + 8);
+                lim = STGT_MIN(lim, tmd->cd_totlen);
+                lim = STGT_MIN(lim, (nluns << 3) + 8);
                 init_sg_elem(dp, NULL, 0, addr, lim);
                 xact->td_xfrlen = dp->length;
                 xact->td_data = dp;
@@ -1082,7 +1079,7 @@ scsi_target_read_capacity_16(tmd_cmd_t *tmd, ini_t *ini)
     ((u8 *)addr)[9] = ((1 << LUN_BLOCK_SHIFT) >> 16) & 0xff;
     ((u8 *)addr)[10] = ((1 << LUN_BLOCK_SHIFT) >>  8) & 0xff;
     ((u8 *)addr)[11] = ((1 << LUN_BLOCK_SHIFT)) & 0xff;
-    init_sg_elem(dp, NULL, 0, addr, min(32, tmd->cd_totlen));
+    init_sg_elem(dp, NULL, 0, addr, STGT_MIN(32, tmd->cd_totlen));
     xact->td_xfrlen = dp->length;
     xact->td_data = dp;
     xact->td_hflags |= TDFH_DATA_IN|TDFH_STSVALID;
@@ -1140,7 +1137,7 @@ scsi_target_read_capacity(tmd_cmd_t *tmd, ini_t *ini)
     ((u8 *)addr)[5] = ((1 << LUN_BLOCK_SHIFT) >> 16) & 0xff;
     ((u8 *)addr)[6] = ((1 << LUN_BLOCK_SHIFT) >>  8) & 0xff;
     ((u8 *)addr)[7] = ((1 << LUN_BLOCK_SHIFT)) & 0xff;
-    init_sg_elem(dp, NULL, 0, addr, min(8, tmd->cd_totlen));
+    init_sg_elem(dp, NULL, 0, addr, STGT_MIN(8, tmd->cd_totlen));
     xact->td_xfrlen = dp->length;
     xact->td_data = dp;
     xact->td_hflags |= TDFH_DATA_IN|TDFH_STSVALID;
@@ -1308,8 +1305,8 @@ scsi_target_modesense(tmd_cmd_t *tmd, ini_t *ini)
     }
 
     ((u8 *)addr)[0] = (u8 *)pgdata - (u8 *) addr - 4;
-    dlen = min(tmd->cd_cdb[4], tmd->cd_totlen);
-    dlen = min(dlen, SGS_PAYLOAD_SIZE);
+    dlen = STGT_MIN(tmd->cd_cdb[4], tmd->cd_totlen);
+    dlen = STGT_MIN(dlen, SGS_PAYLOAD_SIZE);
     init_sg_elem(dp, NULL, 0, addr, dlen);
     xact->td_xfrlen = dp->length;
     xact->td_data = dp;
@@ -1508,7 +1505,7 @@ scsi_target_rdwr(tmd_cmd_t *tmd, ini_t *ini, int from_intr)
                 }
                 return (-1);
             }
-            dp[sgidx].length = min(PAGE_SIZE, byte_count - count);
+            dp[sgidx].length = STGT_MIN(PAGE_SIZE, byte_count - count);
             count += dp[sgidx].length;
             pp = sg_page(&dp[sgidx]);
             lp->pagelists = (struct page ***) NextPage(pp);
@@ -1536,10 +1533,10 @@ scsi_target_rdwr(tmd_cmd_t *tmd, ini_t *ini, int from_intr)
     while (count < byte_count) {
         if (count == 0 && first_offset != 0) {
             dp[sgidx].offset = first_offset;
-            dp[sgidx].length = min(PAGE_SIZE - first_offset, byte_count);
+            dp[sgidx].length = STGT_MIN(PAGE_SIZE - first_offset, byte_count);
         } else {
             dp[sgidx].offset = 0;
-            dp[sgidx].length = min(PAGE_SIZE, byte_count - count);
+            dp[sgidx].length = STGT_MIN(PAGE_SIZE, byte_count - count);
         }
         SDprintk2(" dp[%d]:off %u len %u %u:%u\n", sgidx, dp[sgidx].offset, dp[sgidx].length, list_idx, page_idx);
         sg_assign_page(&dp[sgidx], pglist[page_idx++]);
@@ -2182,7 +2179,7 @@ scsi_target_copydata(struct scatterlist *dp, void *ubuf, uint32_t len, int from_
         if (kva == NULL) {
             return (-EFAULT);
         }
-        cpylen = min(PAGE_SIZE, len - count);
+        cpylen = STGT_MIN(PAGE_SIZE, len - count);
         if (from_user) {
             err = copy_from_user(kva, uva, cpylen);
             SDprintk3("scsi_target: copy from user %p dp[%d].length=%u\n", uva, idx, cpylen);

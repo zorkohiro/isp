@@ -668,7 +668,7 @@ isplinux_pci_init_one(struct Scsi_Host *host)
         pci_intx(pdev, 1);
 
         /*
-         * enable MSI-X or MSI-X, but no MSI-X for the 2432
+         * enable MSI-X or MSI, but no MSI-X for the 2432
          */
         if (pdev->device != PCI_DEVICE_ID_QLOGIC_ISP2432 && pci_enable_msix(pdev, isp_msix, 3) == 0) {
             isp_pci->msix_enabled = 1;

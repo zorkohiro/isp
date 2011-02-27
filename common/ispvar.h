@@ -451,6 +451,7 @@ typedef struct {
 			new_portid	: 24;
 	uint64_t	node_wwn;
 	uint64_t	port_wwn;
+	uint32_t	gone_timer;
 } fcportdb_t;
 
 #define	FC_PORTDB_STATE_NIL		0
@@ -1021,6 +1022,7 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *
  *	ISP_INLINE				___inline or not- depending on how
  *						good your debugger is
+ *	ISP_MIN					shorthand for ((a) < (b))? (a) : (b)
  *
  *	NANOTIME_T				nanosecond time type
  *

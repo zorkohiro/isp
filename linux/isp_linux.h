@@ -191,13 +191,6 @@ typedef struct scsi_host_template Scsi_Host_Template;
 #define DMA_HTYPE_T     dma_addr_t
 #define QLA_HANDLE(cmd) (cmd)->SCp.dma_handle
 
-#ifdef  min
-#undef  min
-#endif
-#ifdef  max
-#undef  max
-#endif
-
 #define	ull	unsigned long long
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
@@ -536,7 +529,7 @@ struct isposinfo {
 
 #define XS_INITERR(xs)  (xs)->result = 0, (xs)->SCp.Status = 0, (xs)->SCp.have_data_in = 0
 
-#define XS_SAVE_SENSE(Cmnd, s, l)   memcpy(XS_SNSP(Cmnd), s, min(XS_SNSLEN(Cmnd), l)), (Cmnd)->SCp.have_data_in = 1
+#define XS_SAVE_SENSE(Cmnd, s, l)   memcpy(XS_SNSP(Cmnd), s, ISP_MIN(XS_SNSLEN(Cmnd), l)), (Cmnd)->SCp.have_data_in = 1
 
 #define XS_SENSE_VALID(Cmnd)        ((Cmnd)->SCp.have_data_in != 0)
 
@@ -706,12 +699,7 @@ extern int api_channel;
 #define ISP_SCAN_TIMEOUT    (2 * ISP_WATCH_TPS)
 #define ISP_RESCAN_TIMEOUT  ISP_WATCH_TPS
 
-#ifndef min
-#define min(a,b) (((a)<(b))?(a):(b))
-#endif
-#ifndef max
-#define max(a, b)   (((a) > (b)) ? (a) : (b))
-#endif
+#define ISP_MIN(a,b) (((a)<(b))?(a):(b))
 #ifndef roundup
 #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
 #endif
