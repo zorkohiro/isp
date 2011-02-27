@@ -129,6 +129,7 @@ struct isposinfo {
 	if (!ISP_MUSTPOLL(isp))		\
 		ISP_LOCK(isp)
 
+#define	ISP_MIN	imin
 #define	ISP_INLINE
 
 #define	NANOTIME_T		struct timeval

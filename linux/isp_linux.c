@@ -1518,7 +1518,7 @@ isp_target_start_ctio(ispsoftc_t *isp, tmd_xact_t *xact)
         if (xact->td_xfrlen == 0) {
             cto->ct_flags |= CT7_FLAG_MODE1 | CT7_NO_DATA | CT7_SENDSTATUS;
             if ((xact->td_hflags & TDFH_SNSVALID) != 0) {
-                cto->rsp.m1.ct_resplen = cto->ct_senselen = min(TMD_SENSELEN, MAXRESPLEN_24XX);
+                cto->rsp.m1.ct_resplen = cto->ct_senselen = ISP_MIN(TMD_SENSELEN, MAXRESPLEN_24XX);
                 memcpy(cto->rsp.m1.ct_resp, tmd->cd_sense, cto->ct_senselen);
                 cto->ct_scsi_status |= (FCP_SNSLEN_VALID << 8);
             }
@@ -1579,7 +1579,7 @@ isp_target_start_ctio(ispsoftc_t *isp, tmd_xact_t *xact)
             ssptr = &cto->rsp.m1.ct_scsi_status;
             *ssptr = tmd->cd_scsi_status;
             if ((xact->td_hflags & TDFH_SNSVALID) != 0) {
-                cto->rsp.m1.ct_senselen = min(TMD_SENSELEN, MAXRESPLEN);
+                cto->rsp.m1.ct_senselen = ISP_MIN(TMD_SENSELEN, MAXRESPLEN);
                 memcpy(cto->rsp.m1.ct_resp, tmd->cd_sense, cto->rsp.m1.ct_senselen);
                 cto->rsp.m1.ct_scsi_status |= CT2_SNSLEN_VALID;
             }
@@ -1760,7 +1760,7 @@ isp_lcl_respond(ispsoftc_t *isp, void *aep, tmd_cmd_t *tmd)
             dp->length = DEFAULT_INQSIZE;
 
             xact->td_data = dp;
-            xact->td_xfrlen = min(DEFAULT_INQSIZE, tmd->cd_totlen);
+            xact->td_xfrlen = ISP_MIN(DEFAULT_INQSIZE, tmd->cd_totlen);
             if ((amt = cdbp[4]) == 0) {
                 amt = 256;
             }
@@ -1890,7 +1890,7 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
         memcpy(tmd->cd_sense, aep->at_sense, QLTM_SENSELEN);
         tmd->cd_flags |= CDF_SNSVALID;
     }
-    memcpy(tmd->cd_cdb, aep->at_cdb, min(TMD_CDBLEN, ATIO_CDBLEN));
+    memcpy(tmd->cd_cdb, aep->at_cdb, ISP_MIN(TMD_CDBLEN, ATIO_CDBLEN));
     AT_MAKE_TAGID(tmd->cd_tagval, aep);
     tmd->cd_tagtype = aep->at_tag_type;
     tmd->cd_hba = isp;
@@ -1979,7 +1979,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
     tmd->cd_nphdl = loopid;
     tmd->cd_tgt = FCPARAM(isp, 0)->isp_wwpn;
     FLATLUN_TO_L0LUN(tmd->cd_lun, lun);
-    memcpy(tmd->cd_cdb, aep->at_cdb, min(TMD_CDBLEN, ATIO2_CDBLEN));
+    memcpy(tmd->cd_cdb, aep->at_cdb, ISP_MIN(TMD_CDBLEN, ATIO2_CDBLEN));
 
     switch (aep->at_taskflags & ATIO2_TC_ATTR_MASK) {
     case ATIO2_TC_ATTR_SIMPLEQ:
@@ -4215,7 +4215,7 @@ isplinux_reinit(ispsoftc_t *isp, int doset_defaults)
             maxluns = 256;
         }
     }
-    isp->isp_osinfo.host->max_lun = min(maxluns, ISP_MAX_LUNS(isp));
+    isp->isp_osinfo.host->max_lun = ISP_MIN(maxluns, ISP_MAX_LUNS(isp));
     isp->isp_osinfo.host->can_queue = 1;
     isp->isp_osinfo.host->cmd_per_lun = 1;
     isp->isp_osinfo.host->this_id = IS_FC(isp)? MAX_FC_TARG : 7;
