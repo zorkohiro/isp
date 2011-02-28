@@ -161,7 +161,7 @@ struct isposinfo {
 #else
 #define	INLINE
 #endif
-
+#define	ISP_MIN(a,b)		(((a)<(b))?(a):(b))
 #define	ISP_FC_SCRLEN		0x1000
 
 #define	ISP_MEMZERO		bzero
