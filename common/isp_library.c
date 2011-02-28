@@ -61,7 +61,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #endif
 #ifdef	__FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/dev/isp/isp_library.c 208997 2010-06-10 19:38:07Z mjacob $");
+__FBSDID("$FreeBSD: src/sys/dev/isp/isp_library.c,v 1.24 2011/02/14 21:50:51 marius Exp $");
 #include <dev/isp/isp_freebsd.h>
 #endif
 #ifdef	__OpenBSD__
@@ -617,13 +617,13 @@ isp_fc_change_role(ispsoftc_t *isp, int chan, int new_role)
 		mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 		mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 		mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN);
+		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
 		isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			FC_SCRATCH_RELEASE(isp, chan);
 			return (EIO);
 		}
-		MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN);
+		MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
 		isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
 
 #ifdef	ISP_TARGET_MODE
@@ -2090,7 +2090,7 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 				ct2->ct_reloff = 0;
 				memset(&ct2->rsp, 0, sizeof (ct2->rsp));
 				if (swd == SCSI_CHECK && snsptr && snslen) {
-					ct2->rsp.m1.ct_senselen = ISP_MIN(snslen, MAXRESPLEN);
+					ct2->rsp.m1.ct_senselen = min(snslen, MAXRESPLEN);
 					memcpy(ct2->rsp.m1.ct_resp, snsptr, ct2->rsp.m1.ct_senselen);
 					swd |= CT2_SNSLEN_VALID;
 				}
@@ -2138,7 +2138,7 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 				ct2->ct_seg_count = 0;
 				memset(&ct2->rsp, 0, sizeof (ct2->rsp));
 				if (swd == SCSI_CHECK && snsptr && snslen) {
-					ct2->rsp.m1.ct_resplen = ISP_MIN(snslen, MAXRESPLEN_24XX);
+					ct2->rsp.m1.ct_resplen = min(snslen, MAXRESPLEN_24XX);
 					memcpy(ct2->rsp.m1.ct_resp, snsptr, ct2->rsp.m1.ct_resplen);
 					swd |= (FCP_SNSLEN_VALID << 8);
 				}
