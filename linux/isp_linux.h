@@ -428,12 +428,12 @@ struct isposinfo {
 #define MAXISPREQUEST(isp)  (IS_24XX(isp)? 2048 : ((IS_FC(isp) || IS_ULTRA2(isp))? 1024 : 256))
 
 #if   defined(__powerpc__)
-#define MEMORYBARRIER(isp, type, offset, size)  __asm__ __volatile__("eieio" ::: "memory")
+#define MEMORYBARRIER(isp, type, offset, size, chan)  __asm__ __volatile__("eieio" ::: "memory")
 #else
 #  ifdef mb
-#    define MEMORYBARRIER(isp, type, offset, size)  mb()
+#    define MEMORYBARRIER(isp, type, offset, size, chan)  mb()
 #  else
-#    define MEMORYBARRIER(isp, type, offset, size)  barrier()
+#    define MEMORYBARRIER(isp, type, offset, size, chan)  barrier()
 #  endif
 #endif
 

@@ -185,7 +185,7 @@ struct isposinfo {
 
 #define	MAXISPREQUEST(isp)	256
 
-#define	MEMORYBARRIER(isp, type, offset, size)			\
+#define	MEMORYBARRIER(isp, type, offset, size, chan)		\
 switch (type) {							\
 case SYNC_REQUEST:						\
 {								\
