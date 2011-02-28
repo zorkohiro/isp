@@ -946,20 +946,21 @@ isplinux_pci_init_one(struct Scsi_Host *host)
         if (request_firmware(&isp->isp_osinfo.fwp, fwname, &pdev->dev) == 0) {
             isp->isp_mdvec->dv_ispfw = isp->isp_osinfo.fwp->data;
             isp_prt(isp, ISP_LOGCONFIG, "using loaded firmware set \"%s\"", fwname);
+#if BYTE_ORDER == LITTLE_ENDIAN
+printk("%p %lu\n", isp->isp_osinfo.fwp->data, isp->isp_osinfo.fwp->size);
             /*
              * On little endian machines convert a byte stream of firmware to native 16 or 32 bit format.
              */
-#if BYTE_ORDER == LITTLE_ENDIAN
             if (IS_24XX(isp)) {
                 uint32_t *ptr = (uint32_t *)isp->isp_osinfo.fwp->data;
                 int i;
-                for (i = 0; i < isp->isp_osinfo.fwp->size >> 2; i++) {
+                for (i = 0; i < (isp->isp_osinfo.fwp->size >> 2); i++) {
                     ptr[i] = ISP_SWAP32(isp, ptr[i]);
                 }
             } else {
                 uint16_t *ptr = (uint16_t *)isp->isp_osinfo.fwp->data;
                 int i;
-                for (i = 0; i < isp->isp_osinfo.fwp->size >> 1; i++) {
+                for (i = 0; i < (isp->isp_osinfo.fwp->size >> 1); i++) {
                     ptr[i] = ISP_SWAP16(isp, ptr[i]);
                 }
             }
