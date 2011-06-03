@@ -2090,7 +2090,7 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 				ct2->ct_reloff = 0;
 				memset(&ct2->rsp, 0, sizeof (ct2->rsp));
 				if (swd == SCSI_CHECK && snsptr && snslen) {
-					ct2->rsp.m1.ct_senselen = min(snslen, MAXRESPLEN);
+					ct2->rsp.m1.ct_senselen = ISP_MIN(snslen, MAXRESPLEN);
 					memcpy(ct2->rsp.m1.ct_resp, snsptr, ct2->rsp.m1.ct_senselen);
 					swd |= CT2_SNSLEN_VALID;
 				}
@@ -2138,7 +2138,7 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 				ct2->ct_seg_count = 0;
 				memset(&ct2->rsp, 0, sizeof (ct2->rsp));
 				if (swd == SCSI_CHECK && snsptr && snslen) {
-					ct2->rsp.m1.ct_resplen = min(snslen, MAXRESPLEN_24XX);
+					ct2->rsp.m1.ct_resplen = ISP_MIN(snslen, MAXRESPLEN_24XX);
 					memcpy(ct2->rsp.m1.ct_resp, snsptr, ct2->rsp.m1.ct_resplen);
 					swd |= (FCP_SNSLEN_VALID << 8);
 				}
