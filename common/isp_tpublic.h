@@ -379,7 +379,7 @@ struct tmd_cmd {
             (lptr)[0] = 0x40 | ((nl >> 8) & 0x3f);  \
         }                                           \
     }                                               \
-    memset(&(lptr)[2], 0, 6)
+    memset(&(lptr)[2], 0, 4)
 
 /*
  * Inner Layer Handler Function.
