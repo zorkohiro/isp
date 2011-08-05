@@ -1,4 +1,4 @@
-/* $FreeBSD: src/sys/dev/isp/isp_freebsd.h,v 1.113 2011/02/14 21:50:51 marius Exp $ */
+/* $FreeBSD: head/sys/dev/isp/isp_freebsd.h 219282 2011-03-05 00:59:34Z mjacob $ */
 /*-
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
  *
@@ -369,7 +369,7 @@ case SYNC_RESULT:						\
 case SYNC_REG:							\
 	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
 	    isp->isp_osinfo.bus_handle, offset, size,		\
-	    BUS_SPACE_BARRIER_READ);				\
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);	\
 	break;							\
 default:							\
 	break;							\
