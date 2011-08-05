@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/sys/dev/isp/isp_sbus.c,v 1.42 2011/02/14 21:50:51 marius Exp $");
+__FBSDID("$FreeBSD: head/sys/dev/isp/isp_sbus.c 218691 2011-02-14 21:50:51Z marius $");
 
 #include <sys/param.h>
 #include <sys/systm.h>
