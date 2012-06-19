@@ -1139,7 +1139,8 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		}
 		fwt &= ~ISP2400_FW_ATTR_EXTNDED;
 		if (fwt) {
-			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%jx)", buf, (uintmax_t)fwt);
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%08x%08x)", buf,
+			    (uint32_t) (fwt >> 32), (uint32_t) fwt);
 		}
 		isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
 	} else if (IS_FC(isp)) {
@@ -1182,7 +1183,8 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s 2K-Login", buf);
 		}
 		if (fwt != 0) {
-			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%jx)", buf, (uintmax_t)fwt);
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%08x%08x)", buf,
+			    (uint32_t) (fwt >> 32), (uint32_t) fwt);
 		}
 		isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
 	}
