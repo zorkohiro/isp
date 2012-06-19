@@ -1,4 +1,4 @@
-/* $FreeBSD: head/sys/dev/isp/isp_freebsd.h 219282 2011-03-05 00:59:34Z mjacob $ */
+/* $FreeBSD: head/sys/dev/isp/isp_freebsd.h 236427 2012-06-01 23:29:48Z mjacob $ */
 /*-
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
  *
@@ -38,9 +38,11 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/sysctl.h>
 
 #include <sys/proc.h>
 #include <sys/bus.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -74,6 +76,13 @@
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 
 #ifdef	ISP_TARGET_MODE
+/* Not quite right, but there was no bump for this change */
+#if __FreeBSD_version < 225469
+#define	SDFIXED(x)	(&x)
+#else
+#define	SDFIXED(x)	((struct scsi_sense_data_fixed *)(&x))
+#endif
+
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	4096
 
@@ -120,8 +129,10 @@ typedef struct tstate {
 	struct ccb_hdr_slist atios;
 	struct ccb_hdr_slist inots;
 	uint32_t hold;
-	int atio_count;
-	int inot_count;
+	uint32_t
+		enabled		: 1,
+		atio_count	: 15,
+		inot_count	: 15;
 	inot_private_data_t *	restart_queue;
 	inot_private_data_t *	ntfree;
 	inot_private_data_t	ntpool[ATPDPSIZE];
@@ -142,6 +153,7 @@ struct isp_pcmd {
 	bus_dmamap_t 		dmap;	/* dma map for this command */
 	struct ispsoftc *	isp;	/* containing isp */
 	struct callout		wdog;	/* watchdog timer */
+	uint8_t 		crn;	/* command reference number */
 };
 #define	ISP_PCMD(ccb)		(ccb)->ccb_h.spriv_ptr1
 #define	PISP_PCMD(ccb)		((struct isp_pcmd *)ISP_PCMD(ccb))
@@ -182,12 +194,15 @@ struct isp_fc {
 		ready		: 1;
 	struct callout ldt;	/* loop down timer */
 	struct callout gdt;	/* gone device timer */
+	struct task ltask;
+	struct task gtask;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
 #ifdef	ISP_INTERNAL_TARGET
 	struct proc *		target_proc;
 #endif
 #endif
+	uint8_t	crnseed;	/* next command reference number */
 };
 
 struct isp_spi {
@@ -250,7 +265,6 @@ struct isposinfo {
 #else
 				: 2,
 #endif
-		forcemulti	: 1,
 		timer_active	: 1,
 		autoconf	: 1,
 		ehook_active	: 1,
@@ -302,6 +316,16 @@ struct isposinfo {
 	} else {					\
 		ISP_FC_PC(isp, chan)-> tag = val;	\
 	}
+
+#define	FCP_NEXT_CRN(isp, cmd, rslt, chan, tgt, lun)				\
+	if ((isp)->isp_osinfo.pc.fc[(chan)].crnseed == 0) {			\
+		(isp)->isp_osinfo.pc.fc[(chan)].crnseed = 1;			\
+	}									\
+	if (cmd) {								\
+		PISP_PCMD(cmd)->crn = (isp)->isp_osinfo.pc.fc[(chan)].crnseed;	\
+	}									\
+	(rslt) = (isp)->isp_osinfo.pc.fc[(chan)].crnseed++
+	
 
 #define	isp_lock	isp_osinfo.lock
 #define	isp_bus_tag	isp_osinfo.bus_tag
@@ -435,11 +459,19 @@ default:							\
 #define	XS_SNSP(ccb)		(&(ccb)->sense_data)
 
 #define	XS_SNSLEN(ccb)		\
-	imin((sizeof((ccb)->sense_data)), ccb->sense_len)
+	imin((sizeof((ccb)->sense_data)), ccb->sense_len - ccb->sense_resid)
 
-#define	XS_SNSKEY(ccb)		((ccb)->sense_data.flags & 0xf)
-#define	XS_SNSASC(ccb)		((ccb)->sense_data.add_sense_code)
-#define	XS_SNSASCQ(ccb)		((ccb)->sense_data.add_sense_code_qual)
+#define	XS_SNSKEY(ccb)		(scsi_get_sense_key(&(ccb)->sense_data, \
+				 ccb->sense_len - ccb->sense_resid, 	\
+				 /*show_errors*/ 1))
+
+#define	XS_SNSASC(ccb)		(scsi_get_asc(&(ccb)->sense_data,	\
+				 ccb->sense_len - ccb->sense_resid, 	\
+				 /*show_errors*/ 1))
+
+#define	XS_SNSASCQ(ccb)		(scsi_get_ascq(&(ccb)->sense_data,	\
+				 ccb->sense_len - ccb->sense_resid, 	\
+				 /*show_errors*/ 1))
 #define	XS_TAG_P(ccb)	\
 	(((ccb)->ccb_h.flags & CAM_TAG_ACTION_VALID) && \
 	 (ccb)->tag_action != CAM_TAG_ACTION_NONE)
@@ -473,9 +505,14 @@ default:							\
 #define	XS_INITERR(ccb)		\
 	XS_SETERR(ccb, CAM_REQ_INPROG), (ccb)->ccb_h.spriv_field0 = 0
 
-#define	XS_SAVE_SENSE(xs, sense_ptr, sense_len)		\
-	(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;	\
-	memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs), sense_len))
+#define	XS_SAVE_SENSE(xs, sense_ptr, slen)	do {			\
+		(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;		\
+		memset(&(xs)->sense_data, 0, sizeof((xs)->sense_data));	\
+		memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs),\
+		       slen)); 						\
+		if (slen < (xs)->sense_len) 				\
+			(xs)->sense_resid = (xs)->sense_len - slen;	\
+	} while (0);
 
 #define	XS_SENSE_VALID(xs)	(((xs)->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
 
@@ -579,7 +616,7 @@ default:							\
  * prototypes for isp_pci && isp_freebsd to share
  */
 extern int isp_attach(ispsoftc_t *);
-extern void isp_detach(ispsoftc_t *);
+extern int isp_detach(ispsoftc_t *);
 extern void isp_uninit(ispsoftc_t *);
 extern uint64_t isp_default_wwn(ispsoftc_t *, int, int, int);
 
@@ -597,11 +634,21 @@ extern int isp_autoconfig;
  * Platform private flags
  */
 #define	ISP_SPRIV_ERRSET	0x1
+#define	ISP_SPRIV_TACTIVE	0x2
 #define	ISP_SPRIV_DONE		0x8
+#define	ISP_SPRIV_WPEND		0x10
+
+#define	XS_S_TACTIVE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_TACTIVE
+#define	XS_C_TACTIVE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_TACTIVE
+#define	XS_TACTIVE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_TACTIVE)
 
 #define	XS_CMD_S_DONE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_DONE
 #define	XS_CMD_C_DONE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_DONE
 #define	XS_CMD_DONE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_DONE)
+
+#define	XS_CMD_S_WPEND(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_WPEND
+#define	XS_CMD_C_WPEND(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_WPEND
+#define	XS_CMD_WPEND_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_WPEND)
 
 #define	XS_CMD_S_CLEAR(sccb)	(sccb)->ccb_h.spriv_field0 = 0
 

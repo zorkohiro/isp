@@ -24,32 +24,6 @@
  *  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *  SUCH DAMAGE.
  *
- *
- *  Alternatively, this software may be distributed under the terms of the
- *  the GNU Public License ("GPL") with platforms where the prevalant license
- *  is the GNU Public License:
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of The Version 2 GNU General Public License as published
- *   by the Free Software Foundation.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *  Matthew Jacob
- *  Feral Software
- *  421 Laurel Avenue
- *  Menlo Park, CA 94025
- *  USA
- *
- *  gplbsd at feral com
  */
 /*
  * Machine and OS Independent Target Mode Code for the Qlogic SCSI/FC adapters.

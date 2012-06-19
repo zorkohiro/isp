@@ -1,3 +1,4 @@
+/* $FreeBSD: head/sys/dev/isp/ispvar.h 236427 2012-06-01 23:29:48Z mjacob $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
@@ -24,32 +25,6 @@
  *  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *  SUCH DAMAGE.
  *
- *
- *  Alternatively, this software may be distributed under the terms of the
- *  the GNU Public License ("GPL") with platforms where the prevalant license
- *  is the GNU Public License:
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of The Version 2 GNU General Public License as published
- *   by the Free Software Foundation.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *  Matthew Jacob
- *  Feral Software
- *  421 Laurel Avenue
- *  Menlo Park, CA 94025
- *  USA
- *
- *  gplbsd at feral com
  */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
@@ -473,8 +448,6 @@ typedef struct {
 typedef struct {
 	uint32_t
 				link_active	: 1,
-				npiv_fabric	: 1,
-				inorder		: 1,
 				sendmarker	: 1,
 				role		: 2,
 				isp_gbspeed	: 4,
@@ -494,6 +467,7 @@ typedef struct {
 	uint16_t		isp_sns_hdl;		/* N-port handle for SNS */
 	uint16_t		isp_lasthdl;		/* only valid for channel 0 */
 	uint16_t		isp_maxalloc;
+	uint16_t		isp_fabric_params;
 	uint8_t			isp_retry_delay;
 	uint8_t			isp_retry_count;
 
@@ -587,10 +561,12 @@ struct ispsoftc {
 	 */
 
 	void * 			isp_param;	/* type specific */
+	uint64_t		isp_fwattr;	/* firmware attributes */
 	uint16_t		isp_fwrev[3];	/* Loaded F/W revision */
 	uint16_t		isp_maxcmds;	/* max possible I/O cmds */
 	uint8_t			isp_type;	/* HBA Chip Type */
 	uint8_t			isp_revision;	/* HBA Chip H/W Revision */
+	uint16_t		isp_nchan;	/* number of channels */
 	uint32_t		isp_maxluns;	/* maximum luns supported */
 
 	uint32_t		isp_clock	: 8,	/* input clock */
@@ -601,8 +577,6 @@ struct ispsoftc {
 				isp_loaded_fw	: 1,	/* loaded firmware */
 				isp_dblev	: 16;	/* debug log mask */
 
-	uint16_t		isp_fwattr;	/* firmware attributes */
-	uint16_t		isp_nchan;	/* number of channels */
 
 	uint32_t		isp_confopts;	/* config options */
 
@@ -642,7 +616,7 @@ struct ispsoftc {
 	volatile uint32_t	isp_resodx;	/* index of next result */
 	volatile uint32_t	isp_obits;	/* mailbox command output */
 	volatile uint32_t	isp_serno;	/* rolling serial number */
-	volatile uint16_t	isp_mboxtmp[MAILBOX_STORAGE];
+	volatile uint16_t	isp_mboxtmp[MAX_MAILBOX];
 	volatile uint16_t	isp_lastmbxcmd;	/* last mbox command sent */
 	volatile uint16_t	isp_mbxwrk0;
 	volatile uint16_t	isp_mbxwrk1;
@@ -704,7 +678,7 @@ struct ispsoftc {
 #define	ISP_RUNSTATE	4
 
 /*
- * ISP Configuration Options
+ * ISP Runtime Configuration Options
  */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
@@ -720,6 +694,7 @@ struct ispsoftc {
 #define	ISP_CFG_OWNLOOPID	0x800	/* override NVRAM loopid */
 #define	ISP_CFG_OWNEXCTHROTTLE	0x1000	/* override NVRAM execution throttle */
 #define	ISP_CFG_FOURGB		0x2000	/* force 4GB connection (24XX only) */
+#define	ISP_CFG_EIGHTGB		0x4000	/* force 8GB connection (25XX only) */
 
 /*
  * For each channel, the outer layers should know what role that channel
@@ -749,7 +724,16 @@ struct ispsoftc {
 #define	ISP_ROLE_BOTH		(ISP_ROLE_TARGET|ISP_ROLE_INITIATOR)
 #define	ISP_ROLE_EITHER		ISP_ROLE_BOTH
 #ifndef	ISP_DEFAULT_ROLES
+/*
+ * Counterintuitively, we prefer to default to role 'none'
+ * if we are enable target mode support. This gives us the
+ * maximum flexibility as to which port will do what.
+ */
+#ifdef	ISP_TARGET_MODE
+#define	ISP_DEFAULT_ROLES	ISP_ROLE_NONE
+#else
 #define	ISP_DEFAULT_ROLES	ISP_ROLE_INITIATOR
+#endif
 #endif
 
 
@@ -978,6 +962,11 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
 #define	ISPASYNC_CHANGE_OTHER	2
 
 /*
+ * Platform Independent Error Prinout
+ */
+void isp_prt_endcmd(ispsoftc_t *, XS_T *);
+
+/*
  * Platform Dependent Error and Debug Printout
  *
  * Two required functions for each platform must be provided:
@@ -1050,6 +1039,8 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	FC_SCRATCH_ACQUIRE(ispsoftc_t *, chan)	acquire lock on FC scratch area
  *						return -1 if you cannot
  *	FC_SCRATCH_RELEASE(ispsoftc_t *, chan)	acquire lock on FC scratch area
+ *
+ *	FCP_NEXT_CRN(ispsoftc_t *, XS_T *, rslt, channel, target, lun)	generate the next command reference number. XS_T * may be null.
  *
  *	SCSI_GOOD	SCSI 'Good' Status
  *	SCSI_CHECK	SCSI 'Check Condition' Status
