@@ -1,3 +1,4 @@
+/* $FreeBSD: head/sys/dev/isp/ispmbox.h 204397 2010-02-27 05:41:23Z mjacob $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
@@ -24,33 +25,8 @@
  *  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *  SUCH DAMAGE.
  * 
- * 
- *  Alternatively, this software may be distributed under the terms of the
- *  the GNU Public License ("GPL") with platforms where the prevalant license
- *  is the GNU Public License:
- * 
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of The Version 2 GNU General Public License as published
- *   by the Free Software Foundation.
- * 
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *  
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- * 
- * 
- *  Matthew Jacob
- *  Feral Software
- *  421 Laurel Avenue
- *  Menlo Park, CA 94025
- *  USA
- * 
- *  gplbsd at feral com
  */
+
 /*
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  */
@@ -871,19 +847,38 @@ typedef struct {
 #define	ISP2400_FW_ATTR_SB2	0x0008
 #define	ISP2400_FW_ATTR_T10CRC	0x0010
 #define	ISP2400_FW_ATTR_VI	0x0020
+#define	ISP2400_FW_ATTR_VP0	0x1000
 #define	ISP2400_FW_ATTR_EXPFW	0x2000
+#define	ISP2400_FW_ATTR_EXTNDED	0x8000
 
+/*
+ * These are either manifestly true or are dependent on f/w attributes
+ */
 #define	ISP_CAP_TMODE(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_TMODE))
 #define	ISP_CAP_SCCFW(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_SCCLUN))
 #define	ISP_CAP_2KLOGIN(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_2KLOGINS))
+
+/*
+ * This is only true for 24XX cards with this f/w attribute
+ */
 #define	ISP_CAP_MULTI_ID(isp)	\
 	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_MULTIID) : 0)
-
 #define	ISP_GET_VPIDX(isp, tag) \
 	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
+
+/*
+ * This is true manifestly or is dependent on a f/w attribute
+ * but may or may not actually be *enabled*. In any case, it
+ * is enabled on a per-channel basis.
+ */
+#define	ISP_CAP_FCTAPE(isp)	\
+	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_FCTAPE))
+
+#define	ISP_FCTAPE_ENABLED(isp, chan)	\
+	(IS_24XX(isp)? (FCPARAM(isp, chan)->isp_xfwoptions & ICB2400_OPT2_FCTAPE) != 0 : (FCPARAM(isp, chan)->isp_xfwoptions & ICBXOPT_FCTAPE) != 0)
 
 /*
  * Reduced Interrupt Operation Response Queue Entries
@@ -1009,7 +1004,9 @@ typedef struct {
 #define	ICB2400_OPT1_FAIRNESS		0x00000002
 #define	ICB2400_OPT1_HARD_ADDRESS	0x00000001
 
+#define	ICB2400_OPT2_TPRLIC		0x00004000
 #define	ICB2400_OPT2_FCTAPE		0x00001000
+#define	ICB2400_OPT2_FCSP		0x00000800
 #define	ICB2400_OPT2_CLASS2_ACK0	0x00000200
 #define	ICB2400_OPT2_CLASS2		0x00000100
 #define	ICB2400_OPT2_NO_PLAY		0x00000080
@@ -1017,8 +1014,7 @@ typedef struct {
 #define	ICB2400_OPT2_LOOP_ONLY		0x00000000
 #define	ICB2400_OPT2_PTP_ONLY		0x00000010
 #define	ICB2400_OPT2_LOOP_2_PTP		0x00000020
-#define	ICB2400_OPT2_PTP_2_LOOP		0x00000030
-#define	ICB2400_OPT2_TIMER_MASK		0x00000007
+#define	ICB2400_OPT2_TIMER_MASK		0x0000000f
 #define	ICB2400_OPT2_ZIO		0x00000005
 #define	ICB2400_OPT2_ZIO1		0x00000006
 
@@ -1161,7 +1157,9 @@ typedef struct {
     ICB2400_VPINFO_OFF + 			\
     sizeof (isp_icb_2400_vpinfo_t) + ((chan - 1) * ICB2400_VPOPT_WRITE_SIZE)
 
-#define	ICB2400_VPGOPT_MID_DISABLE	0x02
+#define	ICB2400_VPGOPT_FCA		0x01	/* Assume Clean Address bit in FLOGI ACC set (works only in static configurations) */
+#define	ICB2400_VPGOPT_MID_DISABLE	0x02	/* when set, connection mode2 will work with NPIV-capable switched */
+#define	ICB2400_VPGOPT_VP0_DECOUPLE	0x04	/* Allow VP0 decoupling if firmware supports it */
 
 typedef struct {
 	isphdr_t	vp_ctrl_hdr;

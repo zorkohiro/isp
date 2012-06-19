@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/dev/isp/isp_sbus.c 218691 2011-02-14 21:50:51Z marius $");
+__FBSDID("$FreeBSD: head/sys/dev/isp/isp_sbus.c 236379 2012-06-01 04:34:49Z eadler $");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -106,6 +106,8 @@ static driver_t isp_sbus_driver = {
 };
 static devclass_t isp_devclass;
 DRIVER_MODULE(isp, sbus, isp_sbus_driver, isp_devclass, 0, 0);
+MODULE_DEPEND(isp, cam, 1, 1, 1);
+MODULE_DEPEND(isp, firmware, 1, 1, 1);
 
 static int
 isp_sbus_probe(device_t dev)

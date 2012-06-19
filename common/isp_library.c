@@ -24,32 +24,6 @@
  *  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *  SUCH DAMAGE.
  *
- *
- *  Alternatively, this software may be distributed under the terms of the
- *  the GNU Public License ("GPL") with platforms where the prevalant license
- *  is the GNU Public License:
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of The Version 2 GNU General Public License as published
- *   by the Free Software Foundation.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *  Matthew Jacob
- *  Feral Software
- *  421 Laurel Avenue
- *  Menlo Park, CA 94025
- *  USA
- *
- *  gplbsd at feral com
  */
 /*
  * Qlogic Host Adapter Internal Library Functions
@@ -61,7 +35,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #endif
 #ifdef	__FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/sys/dev/isp/isp_library.c,v 1.24 2011/02/14 21:50:51 marius Exp $");
+__FBSDID("$FreeBSD: head/sys/dev/isp/isp_library.c 218691 2011-02-14 21:50:51Z marius $");
 #include <dev/isp/isp_freebsd.h>
 #endif
 #ifdef	__OpenBSD__
@@ -2090,7 +2064,7 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 				ct2->ct_reloff = 0;
 				memset(&ct2->rsp, 0, sizeof (ct2->rsp));
 				if (swd == SCSI_CHECK && snsptr && snslen) {
-					ct2->rsp.m1.ct_senselen = ISP_MIN(snslen, MAXRESPLEN);
+					ct2->rsp.m1.ct_senselen = min(snslen, MAXRESPLEN);
 					memcpy(ct2->rsp.m1.ct_resp, snsptr, ct2->rsp.m1.ct_senselen);
 					swd |= CT2_SNSLEN_VALID;
 				}
@@ -2138,7 +2112,7 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 				ct2->ct_seg_count = 0;
 				memset(&ct2->rsp, 0, sizeof (ct2->rsp));
 				if (swd == SCSI_CHECK && snsptr && snslen) {
-					ct2->rsp.m1.ct_resplen = ISP_MIN(snslen, MAXRESPLEN_24XX);
+					ct2->rsp.m1.ct_resplen = min(snslen, MAXRESPLEN_24XX);
 					memcpy(ct2->rsp.m1.ct_resp, snsptr, ct2->rsp.m1.ct_resplen);
 					swd |= (FCP_SNSLEN_VALID << 8);
 				}

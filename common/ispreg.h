@@ -1,3 +1,4 @@
+/* $FreeBSD: head/sys/dev/isp/ispreg.h 204397 2010-02-27 05:41:23Z mjacob $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
@@ -24,32 +25,6 @@
  *  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *  SUCH DAMAGE.
  * 
- * 
- *  Alternatively, this software may be distributed under the terms of the
- *  the GNU Public License ("GPL") with platforms where the prevalant license
- *  is the GNU Public License:
- * 
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of The Version 2 GNU General Public License as published
- *   by the Free Software Foundation.
- * 
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *  
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- * 
- * 
- *  Matthew Jacob
- *  Feral Software
- *  421 Laurel Avenue
- *  Menlo Park, CA 94025
- *  USA
- * 
- *  gplbsd at feral com
  */
 /*
  * Machine Independent (well, as best as possible) register
@@ -481,21 +456,16 @@
  *  2300/2400: 32 MBOX registers
  */
 #define	MBOX_OFF(n)	(MBOX_BLOCK + ((n) << 1))
-#define	NMBOX(isp)	\
-	(((((isp)->isp_type & ISP_HA_SCSI) >= ISP_HA_SCSI_1040A) || \
-	 ((isp)->isp_type & ISP_HA_FC))? 12 : 6)
-#define	NMBOX_BMASK(isp)	\
-	(((((isp)->isp_type & ISP_HA_SCSI) >= ISP_HA_SCSI_1040A) || \
-	 ((isp)->isp_type & ISP_HA_FC))? 0xfff : 0x3f)
-
-#define	MAX_MAILBOX(isp)	((IS_FC(isp))? 12 : 8)
-#define	MAILBOX_STORAGE		12
+#define	ISP_NMBOX(isp)	((IS_24XX(isp) || IS_23XX(isp))? 32 : (IS_2200(isp) ? 24 : 8))
+#define	ISP_NMBOX_BMASK(isp)	\
+	((IS_24XX(isp) || IS_23XX(isp))? 0xffffffff : (IS_2200(isp)? 0x00ffffff : 0xff))
+#define	MAX_MAILBOX	32
 /* if timeout == 0, then default timeout is picked */
 #define	MBCMD_DEFAULT_TIMEOUT	100000	/* 100 ms */
 typedef struct {
-	uint16_t param[MAILBOX_STORAGE];
-	uint16_t ibits;
-	uint16_t obits;
+	uint16_t param[MAX_MAILBOX];
+	uint32_t ibits;
+	uint32_t obits;
 	uint32_t
 		lineno	: 16,
 			: 12,
