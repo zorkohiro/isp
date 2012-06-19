@@ -334,6 +334,7 @@ struct isposinfo {
     u16                 rescan_timeout;
     u16                 frame_size;
     u16                 exec_throttle;
+    u8                  crn;
     struct task_struct *thread_task;
     wait_queue_head_t   trq;
     spinlock_t          tlock;
@@ -406,6 +407,14 @@ struct isposinfo {
  */
 
 #define ISP_FC_SCRLEN   0x1000
+
+#define FCP_NEXT_CRN(isp, cmd, rslt, chan, tgt, lun)    \
+        if ((isp)->isp_osinfo.crn == 0) {               \
+                (isp)->isp_osinfo.crn = 1;              \
+        }                                               \
+        (rslt) = (isp)->isp_osinfo.crn++
+
+
 
 #define ISP_MEMZERO(b, a)   memset(b, 0, a)
 #define ISP_MEMCPY          memcpy
