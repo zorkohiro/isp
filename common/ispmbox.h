@@ -1272,10 +1272,8 @@ typedef struct {
 #define	PDB_STATE_PLOGO		10
 #define	PDB_STATE_PLOG_ACK	11
 
-#define		SVC3_TGT_ROLE		0x10
-#define 	SVC3_INI_ROLE		0x20
-#define			SVC3_ROLE_MASK	0x30
-#define			SVC3_ROLE_SHIFT	4
+#define	SVC3_ROLE_MASK		0x30
+#define	SVC3_ROLE_SHIFT		4
 
 #define	BITS2WORD(x)		((x)[0] << 16 | (x)[3] << 8 | (x)[2])
 #define	BITS2WORD_24XX(x)	((x)[0] << 16 | (x)[1] << 8 | (x)[2])
@@ -1321,8 +1319,8 @@ typedef struct {
  */
 typedef struct {
 	uint16_t	handle;
-	uint16_t	reserved;
-	uint32_t	s3_role	: 8,
+	uint16_t	prli_word3;
+	uint32_t		: 8,
 			portid	: 24;
 	uint8_t		portname[8];
 	uint8_t		nodename[8];
@@ -1819,6 +1817,7 @@ typedef struct {
 	 * Third Party Originator N Port ID.
 	 */
 	uint16_t	in_nport_id_hi;
+#define	in_prli_options in_nport_id_hi
 	uint8_t		in_nport_id_lo;
 	uint8_t		in_reserved3;
 	/*

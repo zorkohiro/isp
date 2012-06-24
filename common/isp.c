@@ -1189,7 +1189,17 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
 	}
 
-	if (!IS_24XX(isp)) {
+	if (IS_24XX(isp)) {
+		MBSINIT(&mbs, MBOX_GET_RESOURCE_COUNT, MBLOGALL, 0);
+		isp_mboxcmd(isp, &mbs);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			ISP_RESET0(isp);
+			return;
+		}
+		if (isp->isp_maxcmds >= mbs.param[3]) {
+			isp->isp_maxcmds = mbs.param[3];
+		}
+	} else {
 		MBSINIT(&mbs, MBOX_GET_FIRMWARE_STATUS, MBLOGALL, 0);
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -1208,7 +1218,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * work for them).
 	 */
 	if (IS_FC(isp) && isp->isp_nchan > 1) {
-		if (!IS_24XX(isp) || (fwt & ISP2400_FW_ATTR_IP) == 0) {
+		if (!IS_24XX(isp) || (fwt & ISP2400_FW_ATTR_MULTIID) == 0) {
 			isp_prt(isp, ISP_LOGWARN, "non-MULTIID f/w loaded, only can enable 1 of %d channels", isp->isp_nchan);
 			isp->isp_nchan = 1;
 		}
@@ -1944,16 +1954,13 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		icbp->icb_execthrottle = ICB_DFLT_THROTTLE;
 	}
 
+	/*
+	 * Set target exchange count. Take half if we are supporting both roles.
+	 */
 	if (icbp->icb_fwoptions1 & ICB2400_OPT1_TGT_ENABLE) {
-		/*
-		 * Get current resource count
-		 */
-		MBSINIT(&mbs, MBOX_GET_RESOURCE_COUNT, MBLOGALL, 0);
-		isp_mboxcmd(isp, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			return;
-		}
-		icbp->icb_xchgcnt = mbs.param[3];
+		icbp->icb_xchgcnt = isp->isp_maxcmds;
+		if ((icbp->icb_fwoptions1 & ICB2400_OPT1_INI_DISABLE) == 0)
+			icbp->icb_xchgcnt >>= 1;
 	}
 
 
@@ -2473,7 +2480,7 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb, int dolock)
 	if (IS_24XX(isp)) {
 		isp_get_pdb_24xx(isp, fcp->isp_scratch, &un.bill);
 		pdb->handle = un.bill.pdb_handle;
-		pdb->s3_role = un.bill.pdb_prli_svc3;
+		pdb->prli_word3 = un.bill.pdb_prli_svc3;
 		pdb->portid = BITS2WORD_24XX(un.bill.pdb_portid_bits);
 		ISP_MEMCPY(pdb->portname, un.bill.pdb_portname, 8);
 		ISP_MEMCPY(pdb->nodename, un.bill.pdb_nodename, 8);
@@ -2492,7 +2499,7 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb, int dolock)
 	} else {
 		isp_get_pdb_21xx(isp, fcp->isp_scratch, &un.fred);
 		pdb->handle = un.fred.pdb_loopid;
-		pdb->s3_role = un.fred.pdb_prli_svc3;
+		pdb->prli_word3 = un.fred.pdb_prli_svc3;
 		pdb->portid = BITS2WORD(un.fred.pdb_portid_bits);
 		ISP_MEMCPY(pdb->portname, un.fred.pdb_portname, 8);
 		ISP_MEMCPY(pdb->nodename, un.fred.pdb_nodename, 8);
@@ -2768,18 +2775,17 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 		lp->state = FC_PORTDB_STATE_PENDING_VALID;
 		MAKE_WWN_FROM_NODE_NAME(lp->node_wwn, pdb.nodename);
 		MAKE_WWN_FROM_NODE_NAME(lp->port_wwn, pdb.portname);
-		lp->roles = (pdb.s3_role & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT;
+		lp->prli_word3 = pdb.prli_word3;
 		lp->portid = pdb.portid;
 		lp->handle = pdb.handle;
 		lp->new_portid = lp->portid;
-		lp->new_roles = lp->roles;
+		lp->new_prli_word3 = lp->prli_word3;
 		if (IS_24XX(isp)) {
 			if (check_for_fabric) {
 				/*
 				 * The mbs is still hanging out from the MBOX_GET_LOOP_ID above.
 				 */
 				fcp->isp_fabric_params = mbs.param[7];
-				isp_prt(isp, ISP_LOGCONFIG, "fabric params 0x%x", mbs.param[7]);
 			} else {
 				fcp->isp_fabric_params = 0;
 			}
@@ -2940,7 +2946,7 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 			} else {
 				lp->autologin = 0;
 			}
-			lp->new_roles = 0;
+			lp->new_prli_word3 = 0;
 			lp->new_portid = 0;
 			/*
 			 * Note that we might come out of this with our state
@@ -2953,13 +2959,12 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 			 * target id in isp_dev_map (if any).
 			 */
 			lp->portid = lp->new_portid;
-			lp->roles = lp->new_roles;
+			lp->prli_word3 = lp->new_prli_word3;
 			lp->state = FC_PORTDB_STATE_VALID;
 			isp_async(isp, ISPASYNC_DEV_ARRIVED, chan, lp);
-			lp->new_roles = 0;
+			lp->new_prli_word3 = 0;
 			lp->new_portid = 0;
-			lp->reserved = 0;
-			lp->new_reserved = 0;
+			lp->announced = 0;
 			break;
 		case FC_PORTDB_STATE_CHANGED:
 /*
@@ -2967,14 +2972,13 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
  */
 			lp->state = FC_PORTDB_STATE_VALID;
 			isp_async(isp, ISPASYNC_DEV_CHANGED, chan, lp);
-			lp->new_roles = 0;
+			lp->new_prli_word3 = 0;
 			lp->new_portid = 0;
-			lp->reserved = 0;
-			lp->new_reserved = 0;
+			lp->announced = 0;
 			break;
 		case FC_PORTDB_STATE_PENDING_VALID:
 			lp->portid = lp->new_portid;
-			lp->roles = lp->new_roles;
+			lp->prli_word3 = lp->new_prli_word3;
 			if (lp->dev_map_idx) {
 				int t = lp->dev_map_idx - 1;
 				fcp->isp_dev_map[t] = dbidx + 1;
@@ -2982,11 +2986,10 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 			lp->state = FC_PORTDB_STATE_VALID;
 			isp_async(isp, ISPASYNC_DEV_STAYED, chan, lp);
 			if (dbidx != FL_ID) {
-				lp->new_roles = 0;
+				lp->new_prli_word3 = 0;
 				lp->new_portid = 0;
 			}
-			lp->reserved = 0;
-			lp->new_reserved = 0;
+			lp->announced = 0;
 			break;
 		case FC_PORTDB_STATE_ZOMBIE:
 			break;
@@ -3143,7 +3146,7 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 		 */
 		MAKE_WWN_FROM_NODE_NAME(tmp.node_wwn, pdb.nodename);
 		MAKE_WWN_FROM_NODE_NAME(tmp.port_wwn, pdb.portname);
-		tmp.roles = (pdb.s3_role & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT;
+		tmp.prli_word3 = pdb.prli_word3;
 		tmp.portid = pdb.portid;
 		tmp.handle = pdb.handle;
 
@@ -3182,8 +3185,7 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 		for (i = 0; i < MAX_FC_TARG; i++) {
 			lp = &fcp->portdb[i];
 
-			if (lp->state == FC_PORTDB_STATE_NIL ||
-			    lp->target_mode) {
+			if (lp->state == FC_PORTDB_STATE_NIL || lp->target_mode) {
 				continue;
 			}
 			if (lp->node_wwn != tmp.node_wwn) {
@@ -3219,15 +3221,11 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 			 * Check to make see if really still the same
 			 * device. If it is, we mark it pending valid.
 			 */
-			if (lp->portid == tmp.portid &&
-			    lp->handle == tmp.handle &&
-			    lp->roles == tmp.roles) {
+			if (lp->portid == tmp.portid && lp->handle == tmp.handle && lp->prli_word3 == tmp.prli_word3) {
 				lp->new_portid = tmp.portid;
-				lp->new_roles = tmp.roles;
+				lp->new_prli_word3 = tmp.prli_word3;
 				lp->state = FC_PORTDB_STATE_PENDING_VALID;
-				isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0,
-				    "Chan %d Loop Port 0x%06x@0x%04x Pending "
-				    "Valid", chan, tmp.portid, tmp.handle);
+				isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Loop Port 0x%06x@0x%04x Pending Valid", chan, tmp.portid, tmp.handle);
 				break;
 			}
 
@@ -3246,7 +3244,7 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 			    chan, tmp.portid, tmp.handle);
 			lp->state = FC_PORTDB_STATE_CHANGED;
 			lp->new_portid = tmp.portid;
-			lp->new_roles = tmp.roles;
+			lp->new_prli_word3 = tmp.prli_word3;
 			break;
 		}
 
@@ -3280,7 +3278,7 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 		lp->autologin = 1;
 		lp->state = FC_PORTDB_STATE_NEW;
 		lp->new_portid = tmp.portid;
-		lp->new_roles = tmp.roles;
+		lp->new_prli_word3 = tmp.prli_word3;
 		lp->handle = tmp.handle;
 		lp->port_wwn = tmp.port_wwn;
 		lp->node_wwn = tmp.node_wwn;
@@ -3701,8 +3699,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
 			lp = &fcp->portdb[dbidx];
 
-			if (lp->state != FC_PORTDB_STATE_PROBATIONAL ||
-			    lp->target_mode) {
+			if (lp->state != FC_PORTDB_STATE_PROBATIONAL || lp->target_mode) {
 				continue;
 			}
 			if (lp->portid == portid) {
@@ -3814,7 +3811,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 				handle_changed++;
 			}
 
-			nr = (pdb.s3_role & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT;
+			nr = pdb.prli_word3;
 
 			/*
 			 * Check to see whether the portid and roles have
@@ -3829,17 +3826,12 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			 */
 
 			lp->new_portid = portid;
-			lp->new_roles = nr;
-			if (pdb.portid != lp->portid || nr != lp->roles ||
-			    handle_changed) {
-				isp_prt(isp, ISP_LOGSANCFG,
-				    "Chan %d Fabric Port 0x%06x changed",
-				    chan, portid);
+			lp->new_prli_word3 = nr;
+			if (pdb.portid != lp->portid || nr != lp->prli_word3 || handle_changed) {
+				isp_prt(isp, ISP_LOGSANCFG, "Chan %d Fabric Port 0x%06x changed", chan, portid);
 				lp->state = FC_PORTDB_STATE_CHANGED;
 			} else {
-				isp_prt(isp, ISP_LOGSANCFG,
-				    "Chan %d Fabric Port 0x%06x "
-				    "Now Pending Valid", chan, portid);
+				isp_prt(isp, ISP_LOGSANCFG, "Chan %d Fabric Port 0x%06x Now Pending Valid", chan, portid);
 				lp->state = FC_PORTDB_STATE_PENDING_VALID;
 			}
 			continue;
@@ -3925,7 +3917,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		handle = pdb.handle;
 		MAKE_WWN_FROM_NODE_NAME(wwnn, pdb.nodename);
 		MAKE_WWN_FROM_NODE_NAME(wwpn, pdb.portname);
-		nr = (pdb.s3_role & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT;
+		nr = pdb.prli_word3;
 
 		/*
 		 * And go through the database *one* more time to make sure
@@ -3939,8 +3931,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			if (fcp->portdb[dbidx].target_mode) {
 				continue;
 			}
-			if (fcp->portdb[dbidx].node_wwn == wwnn &&
-			    fcp->portdb[dbidx].port_wwn == wwpn) {
+			if (fcp->portdb[dbidx].node_wwn == wwnn && fcp->portdb[dbidx].port_wwn == wwpn) {
 				break;
 			}
 		}
@@ -3951,11 +3942,9 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			lp->node_wwn = wwnn;
 			lp->port_wwn = wwpn;
 			lp->new_portid = portid;
-			lp->new_roles = nr;
+			lp->new_prli_word3 = nr;
 			lp->state = FC_PORTDB_STATE_NEW;
-			isp_prt(isp, ISP_LOGSANCFG,
-			    "Chan %d Fabric Port 0x%06x is a New Entry",
-			    chan, portid);
+			isp_prt(isp, ISP_LOGSANCFG, "Chan %d Fabric Port 0x%06x is a New Entry", chan, portid);
 			continue;
 		}
 
@@ -3981,11 +3970,9 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		lp = &fcp->portdb[dbidx];
 		lp->handle = handle;
 		lp->new_portid = portid;
-		lp->new_roles = nr;
-		if (lp->portid != portid || lp->roles != nr) {
-			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0,
-			    "Chan %d Zombie Fabric Port 0x%06x Now Changed",
-			    chan, portid);
+		lp->new_prli_word3 = nr;
+		if (lp->portid != portid || lp->prli_word3 != nr) {
+			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Zombie Fabric Port 0x%06x Now Changed", chan, portid);
 			lp->state = FC_PORTDB_STATE_CHANGED;
 		} else {
 			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0,
@@ -7039,7 +7026,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x3f: */
 	ISP_FC_OPMAP(0x03, 0x01),	/* 0x40: MBOX_LOOP_PORT_BYPASS */
 	ISP_FC_OPMAP(0x03, 0x01),	/* 0x41: MBOX_LOOP_PORT_ENABLE */
-	ISP_FC_OPMAP_HALF(0x3, 0xcf, 0x0, 0x07),	/* 0x42: MBOX_GET_RESOURCE_COUNT */
+	ISP_FC_OPMAP_HALF(0x0, 0x01, 0x3, 0xcf),	/* 0x42: MBOX_GET_RESOURCE_COUNT */
 	ISP_FC_OPMAP(0x01, 0x01),	/* 0x43: MBOX_REQUEST_OFFLINE_MODE */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x44: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x45: */

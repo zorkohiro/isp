@@ -66,6 +66,7 @@ void isp_print_bytes(ispsoftc_t *, const char *, int, void *);
 extern const char *isp_class3_roles[4];
 int isp_fc_runstate(ispsoftc_t *, int, int);
 void isp_dump_portdb(ispsoftc_t *, int);
+void isp_gen_role_str(char *, size_t, uint16_t);
 
 const char *isp_fc_fw_statename(int);
 const char *isp_fc_loop_statename(int);
@@ -166,7 +167,7 @@ int isp_find_pdb_by_wwn(ispsoftc_t *, int, uint64_t, fcportdb_t **);
 int isp_find_pdb_by_loopid(ispsoftc_t *, int, uint32_t, fcportdb_t **);
 int isp_find_pdb_by_sid(ispsoftc_t *, int, uint32_t, fcportdb_t **);
 void isp_find_chan_by_did(ispsoftc_t *, uint32_t, uint16_t *);
-void isp_add_wwn_entry(ispsoftc_t *, int, uint64_t, uint16_t, uint32_t);
+void isp_add_wwn_entry(ispsoftc_t *, int, uint64_t, uint16_t, uint32_t, uint16_t);
 void isp_del_wwn_entry(ispsoftc_t *, int, uint64_t, uint16_t, uint32_t);
 void isp_del_all_wwn_entries(ispsoftc_t *, int);
 void isp_del_wwn_entries(ispsoftc_t *, isp_notify_t *);

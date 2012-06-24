@@ -438,7 +438,7 @@ isp_dump_portdb(ispsoftc_t *isp, int chan)
 	int i;
 
 	for (i = 0; i < MAX_FC_TARG; i++) {
-		char mb[4];
+		char mb[4], buf1[32], buf2[32];
 		const char *dbs[8] = {
 			"NIL ",
 			"PROB",
@@ -448,9 +448,6 @@ isp_dump_portdb(ispsoftc_t *isp, int chan)
 			"PVLD",
 			"ZOMB",
 			"VLD "
-		};
-		const char *roles[4] = {
-			" UNK", " TGT", " INI", "TINI"
 		};
 		fcportdb_t *lp = &fcp->portdb[i];
 
@@ -462,10 +459,78 @@ isp_dump_portdb(ispsoftc_t *isp, int chan)
 		} else {
 			ISP_SNPRINTF(mb, sizeof (mb), "---");
 		}
+		isp_gen_role_str(buf1, sizeof (buf1), lp->prli_word3);
+		isp_gen_role_str(buf2, sizeof (buf2), lp->new_prli_word3);
 		isp_prt(isp, ISP_LOGALL, "Chan %d [%d]: hdl 0x%x %s al%d tgt %s %s 0x%06x =>%s 0x%06x; WWNN 0x%08x%08x WWPN 0x%08x%08x",
-		    chan, i, lp->handle, dbs[lp->state], lp->autologin, mb, roles[lp->roles], lp->portid, roles[lp->new_roles], lp->new_portid,
+		    chan, i, lp->handle, dbs[lp->state], lp->autologin, mb, buf1, lp->portid, buf2, lp->new_portid,
 		    (uint32_t) (lp->node_wwn >> 32), (uint32_t) (lp->node_wwn), (uint32_t) (lp->port_wwn >> 32), (uint32_t) (lp->port_wwn));
 	}
+}
+
+void
+isp_gen_role_str(char *buf, size_t len, uint16_t p3)
+{
+	int nd = 0;
+	ISP_SNPRINTF(buf, len, "(");
+	if (p3 & PRLI_WD3_ENHANCED_DISCOVERY) {
+		nd++;
+		ISP_SNPRINTF(buf, len - strlen(buf), "%sEDisc", buf);
+	}
+	if (p3 & PRLI_WD3_REC_SUPPORT) {
+		if (nd++) {
+			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+		}
+		ISP_SNPRINTF(buf, len - strlen(buf), "%sREC", buf);
+	}
+	if (p3 & PRLI_WD3_TASK_RETRY_IDENTIFICATION_REQUESTED) {
+		if (nd++) {
+			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+		}
+		ISP_SNPRINTF(buf, len - strlen(buf), "%sRetryID", buf);
+	}
+	if (p3 & PRLI_WD3_RETRY) {
+		if (nd++) {
+			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+		}
+		ISP_SNPRINTF(buf, len - strlen(buf), "%sRetry", buf);
+	}
+	if (p3 & PRLI_WD3_CONFIRMED_COMPLETION_ALLOWED) {
+		if (nd++) {
+			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+		}
+		ISP_SNPRINTF(buf, len - strlen(buf), "%sCNFRM", buf);
+	}
+	if (p3 & PRLI_WD3_DATA_OVERLAY_ALLOWED) {
+		if (nd++) {
+			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+		}
+		ISP_SNPRINTF(buf, len - strlen(buf), "%sDOver", buf);
+	}
+	if (p3 & PRLI_WD3_INITIATOR_FUNCTION) {
+		if (nd++) {
+			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+		}
+		ISP_SNPRINTF(buf, len - strlen(buf), "%sINI", buf);
+	}
+	if (p3 & PRLI_WD3_TARGET_FUNCTION) {
+		if (nd++) {
+			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+		}
+		ISP_SNPRINTF(buf, len - strlen(buf), "%sTGT", buf);
+	}
+	if (p3 & PRLI_READ_FCP_XFER_RDY_DISABLED) {
+		if (nd++) {
+			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+		}
+		ISP_SNPRINTF(buf, len - strlen(buf), "%sRdXfrDis", buf);
+	}
+	if (p3 & PRLI_WRITE_FCP_XFER_RDY_DISABLED) {
+		if (nd++) {
+			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+		}
+		ISP_SNPRINTF(buf, len - strlen(buf), "%sXfrDis", buf);
+	}
+	ISP_SNPRINTF(buf, len - strlen(buf), "%s)", buf);
 }
 
 const char *
@@ -2405,8 +2470,9 @@ isp_find_chan_by_did(ispsoftc_t *isp, uint32_t did, uint16_t *cp)
  * Add an initiator device to the port database
  */
 void
-isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint32_t s_id)
+isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint32_t s_id, uint16_t prli_params)
 {
+	char buf[64];
 	fcparam *fcp;
 	fcportdb_t *lp;
 	isp_notify_t nt;
@@ -2415,8 +2481,8 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 	fcp = FCPARAM(isp, chan);
 
 	if (nphdl >= MAX_NPORT_HANDLE) {
-		isp_prt(isp, ISP_LOGWARN, "%s: Chan %d IID 0x%016llx bad N-Port handle 0x%04x Port ID 0x%06x",
-		    __func__, chan, (unsigned long long) ini, nphdl, s_id);
+		isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx bad N-Port handle 0x%04x Port ID 0x%06x",
+		    chan, (unsigned long long) ini, nphdl, s_id);
 		return;
 	}
 
@@ -2451,19 +2517,18 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 	if (lp) {
 		int something = 0;
 		if (lp->handle != nphdl) {
-			isp_prt(isp, ISP_LOGWARN, "%s: Chan %d attempt to re-enter N-port handle 0x%04x IID 0x%016llx Port ID 0x%06x finds IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x",
-			    __func__, chan, nphdl, (unsigned long long)ini, s_id, (unsigned long long) lp->port_wwn, lp->handle, lp->portid);
+			isp_prt(isp, ISP_LOGWARN, "Chan %d attempt to re-enter N-port handle 0x%04x IID 0x%016llx Port ID 0x%06x finds IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x",
+			    chan, nphdl, (unsigned long long)ini, s_id, (unsigned long long) lp->port_wwn, lp->handle, lp->portid);
 			isp_dump_portdb(isp, chan);
 			return;
 		}
 		if (s_id != PORT_NONE) {
 			if (lp->portid == PORT_NONE) {
 				lp->portid = s_id;
-				isp_prt(isp, ISP_LOGTINFO, "%s: Chan %d N-port handle 0x%04x gets Port ID 0x%06x", __func__, chan, nphdl, s_id);
+				isp_prt(isp, ISP_LOGTINFO, "Chan %d N-port handle 0x%04x gets Port ID 0x%06x", chan, nphdl, s_id);
 				something++;
 			} else if (lp->portid != s_id) {
-				isp_prt(isp, ISP_LOGTINFO, "%s: Chan %d N-port handle 0x%04x tries to change Port ID 0x%06x to 0x%06x", __func__, chan, nphdl,
-				    lp->portid, s_id);
+				isp_prt(isp, ISP_LOGTINFO, "Chan %d N-port handle 0x%04x tries to change Port ID 0x%06x to 0x%06x", chan, nphdl, lp->portid, s_id);
 				isp_dump_portdb(isp, chan);
 				return;
 			}
@@ -2471,18 +2536,24 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 		if (VALID_INI(ini)) {
 			if (!VALID_INI(lp->port_wwn)) {
 				lp->port_wwn = ini;
-				isp_prt(isp, ISP_LOGTINFO, "%s: Chan %d N-port handle 0x%04x gets WWN 0x%016llxx", __func__, chan, nphdl, (unsigned long long) ini);
+				isp_prt(isp, ISP_LOGTINFO, "Chan %d N-port handle 0x%04x gets WWN 0x%016llxx", chan, nphdl, (unsigned long long) ini);
 				something++;
 			} else if (lp->port_wwn != ini) {
-				isp_prt(isp, ISP_LOGWARN, "%s: Chan %d N-port handle 0x%04x tries to change WWN 0x%016llx to 0x%016llx", __func__, chan, nphdl,
+				isp_prt(isp, ISP_LOGWARN, "Chan %d N-port handle 0x%04x tries to change WWN 0x%016llx to 0x%016llx", chan, nphdl,
 				    (unsigned long long) lp->port_wwn, (unsigned long long) ini);
 				isp_dump_portdb(isp, chan);
 				return;
 			}
 		}
-
+		if (prli_params != lp->prli_word3) {
+			lp->prli_word3 = prli_params;
+			isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
+			isp_prt(isp, ISP_LOGTINFO, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x new PRLI Word 3 params %s ", chan,
+			    (unsigned long long) lp->port_wwn, lp->handle, lp->portid, buf);
+			something++;
+		}
 		if (!something) {
-			isp_prt(isp, ISP_LOGWARN, "%s: Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x reentered", __func__, chan,
+			isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x reentered", chan,
 			    (unsigned long long) lp->port_wwn, lp->handle, lp->portid);
 		}
 		return;
@@ -2500,8 +2571,8 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 		}
 	}
 	if (i < 0) {
-		isp_prt(isp, ISP_LOGWARN, "%s: Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x- no room in port database",
-		    __func__, chan, (unsigned long long) ini, nphdl, s_id);
+		isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x- no room in port database",
+		    chan, (unsigned long long) ini, nphdl, s_id);
 		return;
 	}
 
@@ -2511,9 +2582,12 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 	lp->handle = nphdl;
 	lp->portid = s_id;
 	lp->port_wwn = ini;
+	lp->prli_word3 = prli_params;
+	isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
 	fcp->isp_tgt_map[nphdl] = i + 1;
 
-	isp_prt(isp, ISP_LOGTINFO, "%s: Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x vtgt %d added", __func__, chan, (unsigned long long) ini, nphdl, s_id, fcp->isp_tgt_map[nphdl] - 1);
+	isp_prt(isp, ISP_LOGTINFO, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x vtgt %d %s added", chan,
+	    (unsigned long long) ini, nphdl, s_id, fcp->isp_tgt_map[nphdl] - 1, buf);
 
 	ISP_MEMZERO(&nt, sizeof (nt));
 	nt.nt_hba = isp;
@@ -2538,8 +2612,8 @@ isp_del_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 	fcportdb_t *lp;
 
 	if (nphdl >= MAX_NPORT_HANDLE) {
-		isp_prt(isp, ISP_LOGWARN, "%s: Chan %d IID 0x%016llx bad N-Port handle 0x%04x Port ID 0x%06x",
-		    __func__, chan, (unsigned long long) ini, nphdl, s_id);
+		isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx bad N-Port handle 0x%04x Port ID 0x%06x",
+		    chan, (unsigned long long) ini, nphdl, s_id);
 		return;
 	}
 
@@ -2553,13 +2627,13 @@ isp_del_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 		}
 	}
 	if (lp == NULL) {
-		isp_prt(isp, ISP_LOGWARN, "%s: Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x cannot be found to be cleared",
-		    __func__, chan, (unsigned long long) ini, nphdl, s_id);
+		isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x cannot be found to be cleared",
+		    chan, (unsigned long long) ini, nphdl, s_id);
 		isp_dump_portdb(isp, chan);
 		return;
 	}
-	isp_prt(isp, ISP_LOGTINFO, "%s: Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x vtgt %d cleared",
-	    __func__, chan, (unsigned long long) lp->port_wwn, nphdl, lp->portid, fcp->isp_tgt_map[nphdl] - 1);
+	isp_prt(isp, ISP_LOGTINFO, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x vtgt %d cleared",
+	    chan, (unsigned long long) lp->port_wwn, nphdl, lp->portid, fcp->isp_tgt_map[nphdl] - 1);
 	fcp->isp_tgt_map[nphdl] = 0;
 
 	ISP_MEMZERO(&nt, sizeof (nt));
@@ -2650,7 +2724,7 @@ isp_del_wwn_entries(ispsoftc_t *isp, isp_notify_t *mp)
 			return;
 		}
 	}
-	isp_prt(isp, ISP_LOGWARN, "%s: Chan %d unable to find entry to delete N-port handle 0x%04x initiator WWN 0x%016llx Port ID 0x%06x", __func__,
+	isp_prt(isp, ISP_LOGWARN, "Chan %d unable to find entry to delete N-port handle 0x%04x initiator WWN 0x%016llx Port ID 0x%06x",
 	    mp->nt_channel, mp->nt_nphdl, (unsigned long long) mp->nt_wwn, mp->nt_sid);
 }
 

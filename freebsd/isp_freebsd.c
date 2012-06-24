@@ -55,9 +55,6 @@ int isp_change_is_bad = 0;	/* "changed" devices are bad */
 int isp_quickboot_time = 7;	/* don't wait more than N secs for loop up */
 int isp_gone_device_time = 30;	/* grace time before reporting device lost */
 int isp_autoconfig = 1;		/* automatically attach/detach devices */
-static const char *roles[4] = {
-    "(none)", "Target", "Initiator", "Target/Initiator"
-};
 static const char prom3[] = "Chan %d PortID 0x%06x Departed from Target %u because of %s";
 static const char rqo[] = "%s: Request Queue Overflow\n";
 
@@ -479,7 +476,7 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 		}
 		lp = &FCPARAM(isp, ifc->chan)->portdb[ifc->loopid];
 		if (lp->state == FC_PORTDB_STATE_VALID || lp->target_mode) {
-			ifc->role = lp->roles;
+			ifc->role = (lp->prli_word3 & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT;
 			ifc->loopid = lp->handle;
 			ifc->portid = lp->portid;
 			ifc->node_wwn = lp->node_wwn;
@@ -2146,7 +2143,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		if (isp_find_pdb_by_wwn(isp, 0, iid, &lp)) {
 			isp_del_wwn_entry(isp, 0, iid, lp->handle, lp->portid);
 		}
-		isp_add_wwn_entry(isp, 0, iid, atiop->init_id, PORT_ANY);
+		isp_add_wwn_entry(isp, 0, iid, atiop->init_id, PORT_ANY, 0);
 	}
 	atiop->cdb_len = ATIO2_CDBLEN;
 	ISP_MEMCPY(atiop->cdb_io.cdb_bytes, aep->at_cdb, ATIO2_CDBLEN);
@@ -2210,6 +2207,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	tstate_t *tptr;
 	struct ccb_accept_tio *atiop;
 	atio_private_data_t *atp = NULL;
+	atio_private_data_t *oatp;
 	inot_private_data_t *ntp;
 
 	did = (aep->at_hdr.d_id[0] << 16) | (aep->at_hdr.d_id[1] << 8) | aep->at_hdr.d_id[2];
@@ -2304,6 +2302,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 			 * it and go to noresrc.
 			 */
 			if (tptr->restart_queue) {
+				isp_prt(isp, ISP_LOGTDEBUG0, "%s: restart queue refilling", __func__);
 				if (restart_queue) {
 					ntp = tptr->restart_queue;
 					tptr->restart_queue = restart_queue;
@@ -2340,15 +2339,15 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] out of atps", aep->at_rxid);
 		goto noresrc;
 	}
-	if (isp_get_atpd(isp, tptr, aep->at_rxid)) {
-		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] tag wraparound in isp_handle_platforms_atio7 (N-Port Handle 0x%04x S_ID 0x%04x OX_ID 0x%04x)\n",
-		    aep->at_rxid, nphdl, sid, aep->at_hdr.ox_id);
+	oatp = isp_get_atpd(isp, tptr, aep->at_rxid);
+	if (oatp) {
+		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] tag wraparound in isp_handle_platforms_atio7 (N-Port Handle 0x%04x S_ID 0x%04x OX_ID 0x%04x) oatp state %d\n",
+		    aep->at_rxid, nphdl, sid, aep->at_hdr.ox_id, oatp->state);
 		/*
 		 * It's not a "no resource" condition- but we can treat it like one
 		 */
 		goto noresrc;
 	}
-
 	atp->tag = aep->at_rxid;
 	atp->state = ATPD_STATE_ATIO;
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
@@ -2394,6 +2393,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	atp->nphdl = nphdl;
 	atp->portid = sid;
 	atp->oxid = aep->at_hdr.ox_id;
+	atp->rxid = aep->at_hdr.rx_id;
 	atp->cdb0 = atiop->cdb_io.cdb_bytes[0];
 	atp->tattr = aep->at_cmnd.fcp_cmnd_task_attribute & FCP_CMND_TASK_ATTR_MASK;
 	atp->state = ATPD_STATE_CAM;
@@ -2685,6 +2685,7 @@ static void
 isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 {
 	uint16_t nphdl;
+	uint16_t prli_options = 0;
 	uint32_t portid;
 	fcportdb_t *lp;
 	uint8_t *ptr = NULL;
@@ -2734,10 +2735,12 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 			/*
 			 * Treat PRLI the same as PLOGI and make a database entry for it.
 			 */
-			if (inot->in_status_subcode == PLOGI)
+			if (inot->in_status_subcode == PLOGI) {
 				msg = "PLOGI";
-			else
+			} else {
+				prli_options = inot->in_prli_options;
 				msg = "PRLI";
+			}
 			if (ISP_FW_NEWER_THAN(isp, 4, 0, 25)) {
 				ptr = (uint8_t *)inot;  /* point to unswizzled entry! */
 				wwn =	(((uint64_t) ptr[IN24XX_PLOGI_WWPN_OFF])   << 56) |
@@ -2751,7 +2754,7 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 			} else {
 				wwn = INI_NONE;
 			}
-			isp_add_wwn_entry(isp, chan, wwn, nphdl, portid);
+			isp_add_wwn_entry(isp, chan, wwn, nphdl, portid, prli_options);
 			break;
 		case PDISC:
 			msg = "PDISC";
@@ -4208,7 +4211,7 @@ isp_ldt_task(void *arg, int pending)
 		/*
 		 * Mark that we've announced that this device is gone....
 		 */
-		lp->reserved = 1;
+		lp->announced = 1;
 
 		/*
 		 * but *don't* change the state of the entry. Just clear
@@ -5035,8 +5038,9 @@ void
 isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 {
 	int bus;
-	static const char prom[] = "Chan %d PortID 0x%06x handle 0x%x role %s %s WWPN 0x%08x%08x";
-	static const char prom2[] = "Chan %d PortID 0x%06x handle 0x%x role %s %s tgt %u WWPN 0x%08x%08x";
+	static const char prom0[] = "Chan %d PortID 0x%06x handle 0x%x %s %s WWPN 0x%08x%08x";
+	static const char prom2[] = "Chan %d PortID 0x%06x handle 0x%x %s %s tgt %u WWPN 0x%08x%08x";
+	char buf[64];
 	char *msg = NULL;
 	target_id_t tgt;
 	fcportdb_t *lp;
@@ -5174,9 +5178,9 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		lp = va_arg(ap, fcportdb_t *);
 		va_end(ap);
 		fc = ISP_FC_PC(isp, bus);
-		lp->reserved = 0;
+		lp->announced = 0;
 		lp->gone_timer = 0;
-		if ((FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) && (lp->roles & (SVC3_TGT_ROLE >> SVC3_ROLE_SHIFT))) {
+		if ((FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) && (lp->prli_word3 & PRLI_WD3_INITIATOR_FUNCTION)) {
 			int dbidx = lp - FCPARAM(isp, bus)->portdb;
 			int i;
 
@@ -5196,12 +5200,13 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				isp_dump_portdb(isp, bus);
 			}
 		}
+		isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
 		if (lp->dev_map_idx) {
 			tgt = lp->dev_map_idx - 1;
-			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, roles[lp->roles], "arrived at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "arrived at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
 			isp_make_here(isp, bus, tgt);
 		} else {
-			isp_prt(isp, ISP_LOGCONFIG, prom, bus, lp->portid, lp->handle, roles[lp->roles], "arrived", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+			isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "arrived", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
 		}
 		break;
 	case ISPASYNC_DEV_CHANGED:
@@ -5210,7 +5215,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		lp = va_arg(ap, fcportdb_t *);
 		va_end(ap);
 		fc = ISP_FC_PC(isp, bus);
-		lp->reserved = 0;
+		lp->announced = 0;
 		lp->gone_timer = 0;
 		if (isp_change_is_bad) {
 			lp->state = FC_PORTDB_STATE_NIL;
@@ -5221,20 +5226,22 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				isp_prt(isp, ISP_LOGCONFIG, prom3, bus, lp->portid, tgt, "change is bad");
 				isp_make_gone(isp, bus, tgt);
 			} else {
-				isp_prt(isp, ISP_LOGCONFIG, prom, bus, lp->portid, lp->handle, roles[lp->roles], "changed and departed",
+				isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
+				isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "changed and departed",
 				    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
 			}
 		} else {
 			lp->portid = lp->new_portid;
-			lp->roles = lp->new_roles;
+			lp->prli_word3 = lp->new_prli_word3;
+			isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
 			if (lp->dev_map_idx) {
 				int t = lp->dev_map_idx - 1;
 				FCPARAM(isp, bus)->isp_dev_map[t] = (lp - FCPARAM(isp, bus)->portdb) + 1;
 				tgt = lp->dev_map_idx - 1;
-				isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, roles[lp->roles], "changed at", tgt,
+				isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "changed at", tgt,
 				    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
 			} else {
-				isp_prt(isp, ISP_LOGCONFIG, prom, bus, lp->portid, lp->handle, roles[lp->roles], "changed", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+				isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "changed", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
 			}
 		}
 		break;
@@ -5243,12 +5250,13 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		bus = va_arg(ap, int);
 		lp = va_arg(ap, fcportdb_t *);
 		va_end(ap);
+		isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
 		if (lp->dev_map_idx) {
 			tgt = lp->dev_map_idx - 1;
-			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, roles[lp->roles], "stayed at", tgt,
+			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "stayed at", tgt,
 		    	    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
 		} else {
-			isp_prt(isp, ISP_LOGCONFIG, prom, bus, lp->portid, lp->handle, roles[lp->roles], "stayed",
+			isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "stayed",
 		    	    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
 		}
 		break;
@@ -5267,8 +5275,9 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		 * announce that it's gone.
 		 *
 		 */
-		if (lp->dev_map_idx && lp->reserved == 0) {
-			lp->reserved = 1;
+		isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
+		if (lp->dev_map_idx && lp->announced == 0) {
+			lp->announced = 1;
 			lp->state = FC_PORTDB_STATE_ZOMBIE;
 			lp->gone_timer = ISP_FC_PC(isp, bus)->gone_device_time;
 			if (fc->ready && !callout_active(&fc->gdt)) {
@@ -5276,9 +5285,9 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				callout_reset(&fc->gdt, hz, isp_gdt, fc);
 			}
 			tgt = lp->dev_map_idx - 1;
-			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, roles[lp->roles], "gone zombie at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
-		} else if (lp->reserved == 0) {
-			isp_prt(isp, ISP_LOGCONFIG, prom, bus, lp->portid, lp->handle, roles[lp->roles], "departed", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "gone zombie at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+		} else if (lp->announced == 0) {
+			isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "departed", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
 		}
 		break;
 	case ISPASYNC_CHANGE_NOTIFY:

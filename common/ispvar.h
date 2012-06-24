@@ -400,9 +400,9 @@ typedef struct {
 	 * A device is 'autologin' if the firmware automatically logs into
 	 * it (re-logins as needed). Basically, local private loop devices.
 	 *
-	 * The state is the current state of this entry.
+	 * PRLI word 3 parameters contains role as well as other things.
 	 *
-	 * Role is Initiator, Target, Both
+	 * The state is the current state of this entry.
 	 *
 	 * Portid is obvious, as are node && port WWNs. The new_role and
 	 * new_portid is for when we are pending a change.
@@ -412,17 +412,18 @@ typedef struct {
 	 * You should also never see anything with an initiator role
 	 * with this set.
 	 */
+	uint16_t	prli_word3;		/* PRLI parameters */
+	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
 	uint16_t	dev_map_idx	: 12,
 			autologin	: 1,	/* F/W does PLOGI/PLOGO */
 			state		: 3;
-	uint32_t	reserved	: 5,
+	uint32_t			: 7,
 			target_mode	: 1,
-			roles		: 2,
 			portid		: 24;
 	uint32_t
+					: 6,
+			announced	: 1,
 			dirty		: 1,	/* commands have been run */
-			new_reserved	: 5,
-			new_roles	: 2,
 			new_portid	: 24;
 	uint64_t	node_wwn;
 	uint64_t	port_wwn;
