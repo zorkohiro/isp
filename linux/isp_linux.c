@@ -2837,8 +2837,9 @@ out:
 void
 isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 {
-    static const char prom0[] = "Chan %d PortID 0x%06x handle 0x%x role %s %s WWNN 0x%016llx WWPN 0x%016llx";
-    static const char prom2[] = "Chan %d PortID 0x%06x handle 0x%x role %s %s tgt %u WWNN 0x%016llx WWPN 0x%016llx";
+    char buf[64];
+    static const char prom0[] = "Chan %d PortID 0x%06x handle 0x%x %s %s WWNN 0x%016llx WWPN 0x%016llx";
+    static const char prom2[] = "Chan %d PortID 0x%06x handle 0x%x %s %s tgt %u WWNN 0x%016llx WWPN 0x%016llx";
     fcportdb_t *lp;
     fcparam *fcp;
     va_list ap;
@@ -2939,7 +2940,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
         lp = va_arg(ap, fcportdb_t *);
         va_end(ap);
         fcp = FCPARAM(isp, bus);
-        if ((fcp->role & ISP_ROLE_INITIATOR) != 0 && (lp->roles & (SVC3_TGT_ROLE >> SVC3_ROLE_SHIFT))) {
+        if ((fcp->role & ISP_ROLE_INITIATOR) != 0 && ((lp->prli_word3 & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT)) {
             int dbidx = lp - fcp->portdb;
             int i;
 
@@ -2959,7 +2960,8 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
                 isp_dump_portdb(isp, bus);
             }
         }
-        isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, isp_class3_roles[lp->roles], "arrived", (ull) lp->node_wwn, (ull) lp->port_wwn);
+        isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
+        isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "arrived", (ull) lp->node_wwn, (ull) lp->port_wwn);
         if (lp->dev_map_idx) {
             lp->dirty = 0;
             if (isp->isp_osinfo.scan_timeout == 0) {
@@ -2974,14 +2976,15 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
         va_end(ap);
         fcp = FCPARAM(isp, bus);
         lp->portid = lp->new_portid;
-        lp->roles = lp->new_roles;
+        lp->prli_word3 = lp->new_prli_word3;
+        isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
         if (lp->dev_map_idx) {
             int t = lp->dev_map_idx - 1;
             fcp->isp_dev_map[t] = (lp - fcp->portdb) + 1;
             tgt = lp->dev_map_idx - 1;
-            isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, isp_class3_roles[lp->roles], "changed at", tgt, (ull) lp->node_wwn, (ull) lp->port_wwn);
+            isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "changed at", tgt, (ull) lp->node_wwn, (ull) lp->port_wwn);
         } else {
-            isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, isp_class3_roles[lp->roles], "changed", (ull) lp->node_wwn, (ull) lp->port_wwn);
+            isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "changed", (ull) lp->node_wwn, (ull) lp->port_wwn);
         }
         break;
     case ISPASYNC_DEV_STAYED:
@@ -2989,11 +2992,12 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
         bus = va_arg(ap, int);
         lp = va_arg(ap, fcportdb_t *);
         va_end(ap);
+        isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
         if (lp->dev_map_idx) {
             tgt = lp->dev_map_idx - 1;
-            isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, isp_class3_roles[lp->roles], "stayed at", tgt, (ull) lp->node_wwn, (ull) lp->port_wwn);
+            isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "stayed at", tgt, (ull) lp->node_wwn, (ull) lp->port_wwn);
         } else {
-            isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, isp_class3_roles[lp->roles], "stayed", (ull) lp->node_wwn, (ull) lp->port_wwn);
+            isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "stayed", (ull) lp->node_wwn, (ull) lp->port_wwn);
         }
         break;
     case ISPASYNC_DEV_GONE:
@@ -3002,15 +3006,15 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
         lp = va_arg(ap, fcportdb_t *);
         va_end(ap);
         fcp = FCPARAM(isp, bus);
+        isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
         if (lp->dev_map_idx) {
-            lp->reserved = 2;
             if (isp->isp_osinfo.rescan_timeout == 0) {
                 isp->isp_osinfo.rescan_timeout = ISP_RESCAN_TIMEOUT;
             }
-            isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, isp_class3_roles[lp->roles], "zombie", (ull) lp->node_wwn, (ull) lp->port_wwn);
+            isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "zombie", (ull) lp->node_wwn, (ull) lp->port_wwn);
             lp->state = FC_PORTDB_STATE_ZOMBIE;
         } else {
-            isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, isp_class3_roles[lp->roles], "departed", (ull) lp->node_wwn, (ull) lp->port_wwn);
+            isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "departed", (ull) lp->node_wwn, (ull) lp->port_wwn);
         }
         break;
     case ISPASYNC_CHANGE_NOTIFY:

@@ -947,7 +947,6 @@ isplinux_pci_init_one(struct Scsi_Host *host)
             isp->isp_mdvec->dv_ispfw = isp->isp_osinfo.fwp->data;
             isp_prt(isp, ISP_LOGCONFIG, "using loaded firmware set \"%s\"", fwname);
 #if BYTE_ORDER == LITTLE_ENDIAN
-printk("%p %lu\n", isp->isp_osinfo.fwp->data, isp->isp_osinfo.fwp->size);
             /*
              * On little endian machines convert a byte stream of firmware to native 16 or 32 bit format.
              */

@@ -1789,7 +1789,7 @@ isp_handle_ctio7(ispsoftc_t *isp, ct7_entry_t *ct)
 		 */
 		if (ct->ct_syshandle == 0) {
 			if (ct->ct_flags & CT7_TERMINATE) {
-				isp_prt(isp, ISP_LOGINFO, "termination of 0x%x complete", ct->ct_rxid);
+				isp_prt(isp, ISP_LOGINFO, "termination of [RX_ID 0x%x] complete", ct->ct_rxid);
 			} else if ((ct->ct_flags & CT7_SENDSTATUS) == 0) {
 				isp_prt(isp, pl, "intermediate CTIO completed ok");
 			} else {

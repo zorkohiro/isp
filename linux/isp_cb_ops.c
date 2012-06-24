@@ -297,11 +297,11 @@ isplinux_proc_info(struct Scsi_Host *shp, char *buf, char **st, off_t off, int l
                 }
                 if (fcp->portdb[i].dev_map_idx) {
                     copy_info(&info, "\tdbidx %d handle 0x%x PortID 0x%06x role %s (target %d)\n\tPort WWN 0x%016llx Node WWN 0x%016llx\n\n",
-                        i, fcp->portdb[i].handle, fcp->portdb[i].portid, isp_class3_roles[fcp->portdb[i].roles],
+                        i, fcp->portdb[i].handle, fcp->portdb[i].portid, isp_class3_roles[(fcp->portdb[i].prli_word3 & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT],
                         fcp->portdb[i].dev_map_idx - 1, (ull) fcp->portdb[i].port_wwn, (ull) fcp->portdb[i].node_wwn);
                 } else {
                     copy_info(&info, "\tdbidx %d handle 0x%x PortID 0x%06x role %s\n\tPort WWN 0x%016llx Node WWN 0x%016llx\n\n",
-                        i, fcp->portdb[i].handle, fcp->portdb[i].portid, isp_class3_roles[fcp->portdb[i].roles],
+                        i, fcp->portdb[i].handle, fcp->portdb[i].portid, isp_class3_roles[(fcp->portdb[i].prli_word3 & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT],
                         (ull) fcp->portdb[i].port_wwn, (ull) fcp->portdb[i].node_wwn);
                 }
             }
@@ -578,7 +578,7 @@ isp_ioctl(struct inode *ip, struct file *fp, unsigned int c, unsigned long arg)
         ISP_LOCK_SOFTC(isp);
         lp = &FCPARAM(isp, ifc->chan)->portdb[ifc->loopid];
         if (lp->state == FC_PORTDB_STATE_VALID || lp->target_mode) {
-            ifc->role = lp->roles;
+            ifc->role = (lp->prli_word3 & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT;
             ifc->loopid = lp->handle;
             ifc->portid = lp->portid;
             ifc->node_wwn = lp->node_wwn;

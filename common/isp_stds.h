@@ -196,6 +196,23 @@ typedef struct {
 #define	RNC			0x53
 
 /*
+ * PRLI Word 3 definitions
+ * FPC4-r02b January, 2011
+ */
+#define	PRLI_WD3_ENHANCED_DISCOVERY			(1 << 11)
+#define	PRLI_WD3_REC_SUPPORT				(1 << 10)
+#define	PRLI_WD3_TASK_RETRY_IDENTIFICATION_REQUESTED	(1 << 9)
+#define	PRLI_WD3_RETRY					(1 << 8)
+#define	PRLI_WD3_CONFIRMED_COMPLETION_ALLOWED		(1 << 7)
+#define	PRLI_WD3_DATA_OVERLAY_ALLOWED			(1 << 6)
+#define	PRLI_WD3_INITIATOR_FUNCTION			(1 << 5)
+#define PRLI_WD3_TARGET_FUNCTION			(1 << 4)
+#define	PRLI_READ_FCP_XFER_RDY_DISABLED			(1 << 1)	/* definitely supposed to be set */
+#define	PRLI_WRITE_FCP_XFER_RDY_DISABLED		(1 << 0)
+
+
+
+/*
  * FC4 defines
  */
 #define	FC4_IP		5	/* ISO/EEC 8802-2 LLC/SNAP */
