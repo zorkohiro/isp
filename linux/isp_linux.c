@@ -4750,6 +4750,7 @@ void
 isp_prt(ispsoftc_t *isp, int level, const char *fmt, ...)
 {
     char buf[256];
+    int loc;
     char *prefl;
     va_list ap;
 
@@ -4767,9 +4768,10 @@ isp_prt(ispsoftc_t *isp, int level, const char *fmt, ...)
     } else {
         prefl = KERN_INFO "%s: ";
     }
-    printk(prefl, isp->isp_name);
+    snprintf(buf, sizeof (buf), prefl, isp->isp_name);
+    loc = strlen(buf);
     va_start(ap, fmt);
-    vsnprintf(buf, sizeof (buf), fmt, ap);
+    vsnprintf(&buf[loc], sizeof (buf) - loc, fmt, ap);
     va_end(ap);
     printk("%s\n", buf);
 }
