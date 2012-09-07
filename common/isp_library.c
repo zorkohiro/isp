@@ -438,7 +438,7 @@ isp_dump_portdb(ispsoftc_t *isp, int chan)
 	int i;
 
 	for (i = 0; i < MAX_FC_TARG; i++) {
-		char mb[4], buf1[32], buf2[32];
+		char mb[4], buf1[64], buf2[64];
 		const char *dbs[8] = {
 			"NIL ",
 			"PROB",
@@ -471,66 +471,67 @@ void
 isp_gen_role_str(char *buf, size_t len, uint16_t p3)
 {
 	int nd = 0;
-	ISP_SNPRINTF(buf, len, "(");
+	buf[0] = '(';
+	buf[1] = 0;
 	if (p3 & PRLI_WD3_ENHANCED_DISCOVERY) {
 		nd++;
-		ISP_SNPRINTF(buf, len - strlen(buf), "%sEDisc", buf);
+		strlcat(buf, "EDisc", len);
 	}
 	if (p3 & PRLI_WD3_REC_SUPPORT) {
 		if (nd++) {
-			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+			strlcat(buf, ",", len);
 		}
-		ISP_SNPRINTF(buf, len - strlen(buf), "%sREC", buf);
+		strlcat(buf, "REC", len);
 	}
 	if (p3 & PRLI_WD3_TASK_RETRY_IDENTIFICATION_REQUESTED) {
 		if (nd++) {
-			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+			strlcat(buf, ",", len);
 		}
-		ISP_SNPRINTF(buf, len - strlen(buf), "%sRetryID", buf);
+		strlcat(buf, "RetryID", len);
 	}
 	if (p3 & PRLI_WD3_RETRY) {
 		if (nd++) {
-			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+			strlcat(buf, ",", len);
 		}
-		ISP_SNPRINTF(buf, len - strlen(buf), "%sRetry", buf);
+		strlcat(buf, "Retry", len);
 	}
 	if (p3 & PRLI_WD3_CONFIRMED_COMPLETION_ALLOWED) {
 		if (nd++) {
-			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+			strlcat(buf, ",", len);
 		}
-		ISP_SNPRINTF(buf, len - strlen(buf), "%sCNFRM", buf);
+		strlcat(buf, "CNFRM", len);
 	}
 	if (p3 & PRLI_WD3_DATA_OVERLAY_ALLOWED) {
 		if (nd++) {
-			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+			strlcat(buf, ",", len);
 		}
-		ISP_SNPRINTF(buf, len - strlen(buf), "%sDOver", buf);
+		strlcat(buf, "DOver", len);
 	}
 	if (p3 & PRLI_WD3_INITIATOR_FUNCTION) {
 		if (nd++) {
-			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+			strlcat(buf, ",", len);
 		}
-		ISP_SNPRINTF(buf, len - strlen(buf), "%sINI", buf);
+		strlcat(buf, "INI", len);
 	}
 	if (p3 & PRLI_WD3_TARGET_FUNCTION) {
 		if (nd++) {
-			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+			strlcat(buf, ",", len);
 		}
-		ISP_SNPRINTF(buf, len - strlen(buf), "%sTGT", buf);
+		strlcat(buf, "TGT", len);
 	}
 	if (p3 & PRLI_READ_FCP_XFER_RDY_DISABLED) {
 		if (nd++) {
-			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+			strlcat(buf, ",", len);
 		}
-		ISP_SNPRINTF(buf, len - strlen(buf), "%sRdXfrDis", buf);
+		strlcat(buf, "RdXfrDis", len);
 	}
 	if (p3 & PRLI_WRITE_FCP_XFER_RDY_DISABLED) {
 		if (nd++) {
-			ISP_SNPRINTF(buf, len - strlen(buf), "%s,", buf);
+			strlcat(buf, ",", len);
 		}
-		ISP_SNPRINTF(buf, len - strlen(buf), "%sXfrDis", buf);
+		strlcat(buf, "XfrDis", len);
 	}
-	ISP_SNPRINTF(buf, len - strlen(buf), "%s)", buf);
+	strlcat(buf, ")", len);
 }
 
 const char *
@@ -2548,7 +2549,7 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 		if (prli_params != lp->prli_word3) {
 			lp->prli_word3 = prli_params;
 			isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
-			isp_prt(isp, ISP_LOGTINFO, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x new PRLI Word 3 params %s ", chan,
+			isp_prt(isp, ISP_LOGTINFO, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x new PRLI Word 3 params %s", chan,
 			    (unsigned long long) lp->port_wwn, lp->handle, lp->portid, buf);
 			something++;
 		}
