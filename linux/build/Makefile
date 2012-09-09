@@ -58,7 +58,7 @@ HOSTCFLAGS		+=	-Wall -Werror -D_LARGEFILE_SUPPORT=1 -D_LARGEFILE64_SUPPORT -D_FI
 hostprogs-y		:=	$(basename ${XXX_SRC}) scsi_target_ctl
 always			:=	$(hostprogs-y)
 
-clean-files		:=	*.o ${hostprogs-y} Module.symvers
+clean-files		:=	*.o ${hostprogs-y} Module.symvers *.ko.unsigned
 
 
 ${MOD_NAME}_mod-objs		:=	${COM_OBJ} ${LNX_OBJ}
