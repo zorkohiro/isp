@@ -1410,7 +1410,7 @@ isp_pci_rd_reg_1080(ispsoftc_t *isp, int regoff)
     uint32_t rv, oldconf = 0;
     volatile int junk;
 
-    if ((regoff & _BLK_REG_MASK) == SXP_BLOCK || (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
+    if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
         uint32_t tmpconf;
         /*
          * We will assume that someone has paused the RISC processor.
@@ -1448,7 +1448,7 @@ isp_pci_wr_reg_1080(ispsoftc_t *isp, int regoff, uint32_t val)
     uint32_t oldconf = 0;
     volatile int junk;
 
-    if ((regoff & _BLK_REG_MASK) == SXP_BLOCK || (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
+    if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
         uint32_t tmpconf;
         /*
          * We will assume that someone has paused the RISC processor.
