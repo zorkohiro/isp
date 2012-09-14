@@ -308,7 +308,8 @@ struct isposinfo {
     void *              storep;
     size_t              storep_amt;
     size_t              param_amt;
-    const struct firmware *fwp;
+    size_t              fwalloc_size;
+    void *              firmware;
 #ifdef  CONFIG_PROC_FS
     struct proc_dir_entry *pdp;
 #endif

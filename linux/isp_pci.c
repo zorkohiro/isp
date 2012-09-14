@@ -567,6 +567,7 @@ isplinux_pci_init_one(struct Scsi_Host *host)
     unsigned int bar, rev;
     u16 cmd;
     struct isp_pcisoftc *isp_pci;
+    const struct firmware *fwp;
     struct pci_dev *pdev;
     ispsoftc_t *isp;
     const char *fwname = NULL;
@@ -757,7 +758,7 @@ isplinux_pci_init_one(struct Scsi_Host *host)
         isp->isp_mdvec = &mdvec;
         isp->isp_type = ISP_HA_SCSI_UNKNOWN;
         if (isp->isp_mdvec->dv_ispfw == NULL) {
-            fwname = "ql1040_fw.bin";
+            fwname = "qlogic/1040.bin";
         }
     }
 #endif
@@ -766,7 +767,7 @@ isplinux_pci_init_one(struct Scsi_Host *host)
         isp->isp_mdvec = &mdvec_1080;
         isp->isp_type = ISP_HA_SCSI_1080;
         if (isp->isp_mdvec->dv_ispfw == NULL) {
-            fwname = "ql1080_fw.bin";
+            fwname = "qlogic/1280.bin";
         }
     }
     if (pdev->device == PCI_DEVICE_ID_QLOGIC_ISP1240) {
@@ -774,7 +775,7 @@ isplinux_pci_init_one(struct Scsi_Host *host)
         isp->isp_type = ISP_HA_SCSI_1240;
         host->max_channel = 1;
         if (isp->isp_mdvec->dv_ispfw == NULL) {
-            fwname = "ql1080_fw.bin";
+            fwname = "qlogic/1280.bin";
         }
     }
     if (pdev->device == PCI_DEVICE_ID_QLOGIC_ISP1280) {
@@ -782,7 +783,7 @@ isplinux_pci_init_one(struct Scsi_Host *host)
         isp->isp_type = ISP_HA_SCSI_1280;
         host->max_channel = 1;
         if (isp->isp_mdvec->dv_ispfw == NULL) {
-            fwname = "ql1080_fw.bin";
+            fwname = "qlogic/1280.bin";
         }
     }
 #endif
@@ -791,7 +792,7 @@ isplinux_pci_init_one(struct Scsi_Host *host)
         isp->isp_mdvec = &mdvec_12160;
         isp->isp_type = ISP_HA_SCSI_12160;
         if (isp->isp_mdvec->dv_ispfw == NULL) {
-            fwname = "ql12160_fw.bin";
+            fwname = "qlogic/12160.bin";
         }
     }
     if (pdev->device == PCI_DEVICE_ID_QLOGIC_ISP12160) {
@@ -799,7 +800,7 @@ isplinux_pci_init_one(struct Scsi_Host *host)
         isp->isp_type = ISP_HA_SCSI_12160;
         host->max_channel = 1;
         if (isp->isp_mdvec->dv_ispfw == NULL) {
-            fwname = "ql12160_fw.bin";
+            fwname = "qlogic/12160.bin";
         }
     }
 #endif
@@ -943,30 +944,40 @@ isplinux_pci_init_one(struct Scsi_Host *host)
 
 #if !defined(DISABLE_FW_LOADER) && (defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE))
     if (fwname) {
-        if (request_firmware(&isp->isp_osinfo.fwp, fwname, &pdev->dev) == 0) {
-            isp->isp_mdvec->dv_ispfw = isp->isp_osinfo.fwp->data;
-            isp_prt(isp, ISP_LOGCONFIG, "using loaded firmware set \"%s\"", fwname);
+        if (request_firmware(&fwp, fwname, &pdev->dev) == 0) {
+            isp->isp_osinfo.fwalloc_size = fwp->size;
+            isp->isp_osinfo.firmware = isp_kalloc(fwp->size, GFP_KERNEL);
+            if (isp->isp_osinfo.firmware) {
+                isp->isp_mdvec->dv_ispfw = isp->isp_osinfo.firmware;
+                isp_prt(isp, ISP_LOGCONFIG, "using loaded firmware set \"%s\"", fwname);
 #if BYTE_ORDER == LITTLE_ENDIAN
-            /*
-             * On little endian machines convert a byte stream of firmware to native 16 or 32 bit format.
-             */
-            if (IS_24XX(isp)) {
-                uint32_t *ptr = (uint32_t *)isp->isp_osinfo.fwp->data;
-                int i;
-                for (i = 0; i < (isp->isp_osinfo.fwp->size >> 2); i++) {
-                    ptr[i] = ISP_SWAP32(isp, ptr[i]);
+                /*
+                 * On little endian machines convert a byte stream of firmware to native 16 or 32 bit format.
+                 */
+                if (IS_24XX(isp)) {
+                    uint32_t *dst = (uint32_t *) isp->isp_mdvec->dv_ispfw;
+                    uint32_t *src = (uint32_t *) fwp->data;
+                    size_t i;
+                    for (i = 0; i < (fwp->size >> 2); i++) {
+                        dst[i] = ISP_SWAP32(isp, src[i]);
+                    }
+                } else {
+                    uint16_t *dst = (uint16_t *) isp->isp_mdvec->dv_ispfw;
+                    uint16_t *src = (uint16_t *) fwp->data;
+                    size_t i;
+                    for (i = 0; i < (fwp->size >> 1); i++) {
+                        dst[i] = ISP_SWAP16(isp, src[i]);
+                    }
                 }
-            } else {
-                uint16_t *ptr = (uint16_t *)isp->isp_osinfo.fwp->data;
-                int i;
-                for (i = 0; i < (isp->isp_osinfo.fwp->size >> 1); i++) {
-                    ptr[i] = ISP_SWAP16(isp, ptr[i]);
-                }
-            }
+#else
+                memcpy(isp->isp_mdvec->dv_ispfw, fwp->data, fwp->size);
 #endif
+            } else
+                isp->isp_osinfo.fwalloc_size = 0;
+            release_firmware(fwp);
         } else {
             isp_prt(isp, ISP_LOGWARN, "unable to load firmware set \"%s\"", fwname);
-            isp->isp_osinfo.fwp = NULL;
+            isp->isp_osinfo.fwalloc_size = 0;
         }
     }
 #else
@@ -978,7 +989,6 @@ isplinux_pci_init_one(struct Scsi_Host *host)
         }
     }
 #endif
-
     if (isplinux_common_init(isp)) {
         isp_prt(isp, ISP_LOGERR, "isplinux_common_init failed");
         goto bad;
@@ -995,9 +1005,9 @@ bad:
         isp->isp_osinfo.storep = NULL;
     }
 #ifdef  CONFIG_FW_LOADER
-    if (isp->isp_osinfo.fwp) {
-        release_firmware(isp->isp_osinfo.fwp);
-        isp->isp_osinfo.fwp = NULL;
+    if (isp->isp_osinfo.firmware) {
+        isp_kfree(isp->isp_osinfo.firmware, isp->isp_osinfo.fwalloc_size);
+        isp->isp_osinfo.firmware = NULL;
     }
 #endif
     ISP_DISABLE_INTS(isp);
@@ -2170,9 +2180,9 @@ isplinux_pci_remove(struct pci_dev *pdev)
 #endif
     scsi_host_put(host);
 #ifdef  CONFIG_FW_LOADER
-    if (isp->isp_osinfo.fwp) {
-        release_firmware(isp->isp_osinfo.fwp);
-        isp->isp_osinfo.fwp = NULL;
+    if (isp->isp_osinfo.firmware) {
+        isp_kfree(isp->isp_osinfo.firmware, isp->isp_osinfo.fwalloc_size);
+        isp->isp_osinfo.firmware = NULL;
     }
 #endif
     pci_set_drvdata(pdev, NULL);

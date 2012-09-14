@@ -459,6 +459,15 @@ isplinux_queuecommand(Scsi_Cmnd *Cmnd, void (*donecmd)(Scsi_Cmnd *))
     chan = XS_CHANNEL(Cmnd);
     Cmnd->scsi_done = donecmd;
 
+    if (chan >= isp->isp_nchan) {
+        XS_INITERR(Cmnd);
+        XS_SETERR(Cmnd, DID_NO_CONNECT);
+        ISP_LOCK_SCSI_DONE(isp);
+        (*Cmnd->scsi_done)(Cmnd);
+        ISP_UNLK_SCSI_DONE(isp);
+        return (0);
+    }
+
     ISP_DRIVER_ENTRY_LOCK(isp);
     ISP_LOCK_SOFTC(isp);
 
@@ -528,10 +537,10 @@ isplinux_queuecommand(Scsi_Cmnd *Cmnd, void (*donecmd)(Scsi_Cmnd *))
          * some other change (e.g., fabric membership
          * change)
          */
-        isplinux_append_to_waitq(isp, Cmnd);
-        if (IS_FC(isp) && ISP_DATA(isp, XS_CHANNEL(Cmnd))->deadloop == 0) {
-            isp_thread_event(isp, ISP_THREAD_FC_RESCAN, FCPARAM(isp, XS_CHANNEL(Cmnd)), 0, __func__, __LINE__);
+        if (IS_FC(isp) && ISP_DATA(isp, chan)->deadloop == 0) {
+            isp_thread_event(isp, ISP_THREAD_FC_RESCAN, FCPARAM(isp, chan), 0, __func__, __LINE__);
         }
+        isplinux_append_to_waitq(isp, Cmnd);
         result = 0;
     } else if (result == CMD_COMPLETE) {
         result = -1;
@@ -4758,17 +4767,17 @@ isp_prt(ispsoftc_t *isp, int level, const char *fmt, ...)
         return;
     }
     if (level & (ISP_LOGTINFO|ISP_LOGINFO|ISP_LOGCONFIG|ISP_LOGSANCFG)) {
-        prefl = KERN_INFO "%s: ";
+        prefl = KERN_INFO;
     } else if (level & ISP_LOGWARN) {
-        prefl = KERN_WARNING "%s: ";
+        prefl = KERN_WARNING;
     } else if (level & ISP_LOGERR) {
-        prefl = KERN_ERR "%s: ";
+        prefl = KERN_ERR;
     } else if (level & (ISP_LOGDEBUG0|ISP_LOGDEBUG1|ISP_LOGDEBUG2|ISP_LOGDEBUG3)) {
-        prefl = KERN_DEBUG "%s: ";
+        prefl = KERN_DEBUG;
     } else {
-        prefl = KERN_INFO "%s: ";
+        prefl = KERN_INFO;
     }
-    snprintf(buf, sizeof (buf), prefl, isp->isp_name);
+    snprintf(buf, sizeof (buf), "%s%s: ", prefl, isp->isp_name);
     loc = strlen(buf);
     va_start(ap, fmt);
     vsnprintf(&buf[loc], sizeof (buf) - loc, fmt, ap);
