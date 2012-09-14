@@ -1,4 +1,4 @@
-/* $FreeBSD: head/sys/dev/isp/isp_target.h 196008 2009-08-01 01:04:26Z mjacob $ */
+/* $FreeBSD: user/mjacob/sys/dev/isp/isp_target.h 238999 2012-08-03 03:30:49Z mjacob $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
@@ -50,6 +50,7 @@ typedef enum {
 	NT_LINK_DOWN,
 	NT_LOGOUT,
 	NT_GLOBAL_LOGOUT,
+	NT_CHANGED,
 	NT_ARRIVED,
 	NT_DEPARTED,
 	NT_HBA_RESET

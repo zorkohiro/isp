@@ -1,4 +1,4 @@
-/* $FreeBSD: head/sys/dev/isp/isp_stds.h 197373 2009-09-21 01:41:19Z mjacob $ */
+/* $FreeBSD: user/mjacob/sys/dev/isp/isp_stds.h 238999 2012-08-03 03:30:49Z mjacob $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
@@ -137,9 +137,30 @@ typedef struct {
 } rft_id_t;
 
 /*
- * FCP Response IU Bits of interest
- * Source: NCITS T10, Project 1144D, Revision 08 (aka FCP2r08)
+ * FCP Response IU and bits of interest
+ * Source: NCITS T10, Project 1828D, Revision 02b (aka FCP4r02b)
  */
+typedef struct {
+	uint8_t		fcp_rsp_reserved[8];
+	uint16_t	fcp_rsp_status_qualifier;	/* SAM-5 Status Qualifier */
+	uint8_t		fcp_rsp_bits;
+	uint8_t		fcp_rsp_scsi_status;		/* SAM-5 SCSI Status Byte */
+	uint32_t	fcp_rsp_resid;
+	uint32_t	fcp_rsp_snslen;
+	uint32_t	fcp_rsp_rsplen;
+	/*
+	 * In the bytes that follow, it's going to be
+	 * FCP RESPONSE INFO (max 8 bytes, possibly 0)
+	 * FCP SENSE INFO (if any)
+	 * FCP BIDIRECTIONAL READ RESID (if any)
+	 */
+	uint8_t		fcp_rsp_extra[0];
+} fcp_rsp_iu_t;
+#define	MIN_FCP_RESPONSE_SIZE		24
+
+#define	FCP_BIDIR_RSP			0x80	/* Bi-Directional response */
+#define	FCP_BIDIR_RESID_UNDERFLOW	0x40
+#define	FCP_BIDIR_RESID_OVERFLOW	0x20
 #define	FCP_CONF_REQ			0x10
 #define	FCP_RESID_UNDERFLOW		0x08
 #define	FCP_RESID_OVERFLOW		0x04
@@ -162,17 +183,41 @@ typedef struct {
 #define	FCP_RSPNS_TMF_SUCCEEDED		8
 #define	FCP_RSPNS_TMF_INCORRECT_LUN	9
 
+/*
+ * R_CTL field definitions
+ *
+ * Bits 31-28 are ROUTING
+ * Bits 27-24 are INFORMATION
+ *
+ * These are nibble values, not bits
+ */
+#define	R_CTL_ROUTE_DATA	0x00
+#define	R_CTL_ROUTE_ELS		0x02
+#define	R_CTL_ROUTE_FC4_LINK	0x03
+#define	R_CTL_ROUTE_VDATA	0x04
+#define	R_CTL_ROUTE_EXENDED	0x05
+#define	R_CTL_ROUTE_BASIC	0x08
+#define	R_CTL_ROUTE_LINK	0x0c
+#define	R_CTL_ROUTE_EXT_ROUTING	0x0f
+
+#define	R_CTL_INFO_UNCATEGORIZED	0x00
+#define	R_CTL_INFO_SOLICITED_DATA	0x01
+#define	R_CTL_INFO_UNSOLICITED_CONTROL	0x02
+#define	R_CTL_INFO_SOLICITED_CONTROL	0x03
+#define	R_CTL_INFO_UNSOLICITED_DATA	0x04
+#define	R_CTL_INFO_DATA_DESCRIPTOR	0x05
+#define	R_CTL_INFO_UNSOLICITED_COMMAND	0x06
+#define	R_CTL_INFO_COMMAND_STATUS	0x07
+
+#define	MAKE_RCTL(a, b)	(((a) << 4) | (b))
 
 /* unconverted miscellany */
 /*
  * Basic FC Link Service defines
  */
-/*
- * These are in the R_CTL field.
- */
-#define	ABTS			0x81
-#define	BA_ACC			0x84	/* of ABORT SEQUENCE */
-#define	BA_RJT			0x85	/* of ABORT SEQUENCE */
+/* #define	ABTS	MAKE_RCTL(R_CTL_ROUTE_BASIC, R_CTL_INFO_SOLICITED_DATA) */
+#define	BA_ACC	MAKE_RCTL(R_CTL_ROUTE_BASIC, R_CTL_INFO_UNSOLICITED_DATA)	/* of ABORT */
+#define	BA_RJT	MAKE_RCTL(R_CTL_ROUTE_BASIC, R_CTL_INFO_DATA_DESCRIPTOR)	/* of ABORT */
 
 /*
  * Link Service Accept/Reject
@@ -206,9 +251,9 @@ typedef struct {
 #define	PRLI_WD3_CONFIRMED_COMPLETION_ALLOWED		(1 << 7)
 #define	PRLI_WD3_DATA_OVERLAY_ALLOWED			(1 << 6)
 #define	PRLI_WD3_INITIATOR_FUNCTION			(1 << 5)
-#define PRLI_WD3_TARGET_FUNCTION			(1 << 4)
-#define	PRLI_READ_FCP_XFER_RDY_DISABLED			(1 << 1)	/* definitely supposed to be set */
-#define	PRLI_WRITE_FCP_XFER_RDY_DISABLED		(1 << 0)
+#define	PRLI_WD3_TARGET_FUNCTION			(1 << 4)
+#define	PRLI_WD3_READ_FCP_XFER_RDY_DISABLED		(1 << 1)	/* definitely supposed to be set */
+#define	PRLI_WD3_WRITE_FCP_XFER_RDY_DISABLED		(1 << 0)
 
 
 

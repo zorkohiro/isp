@@ -4766,7 +4766,7 @@ isp_prt(ispsoftc_t *isp, int level, const char *fmt, ...)
     if (level != ISP_LOGALL && (level & isp->isp_dblev) == 0) {
         return;
     }
-    if (level & (ISP_LOGTINFO|ISP_LOGINFO|ISP_LOGCONFIG|ISP_LOGSANCFG)) {
+    if (level & (ISP_LOGTINFO|ISP_LOGINFO|ISP_LOGCONFIG|ISP_LOG_SANCFG)) {
         prefl = KERN_INFO;
     } else if (level & ISP_LOGWARN) {
         prefl = KERN_WARNING;
@@ -4797,7 +4797,7 @@ isp_xs_prt(ispsoftc_t *isp, XS_T *xs, int level, const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(buf, sizeof (buf), fmt, ap);
     va_end(ap);
-    if (level & (ISP_LOGTINFO|ISP_LOGINFO|ISP_LOGCONFIG|ISP_LOGSANCFG)) {
+    if (level & (ISP_LOGTINFO|ISP_LOGINFO|ISP_LOGCONFIG|ISP_LOG_SANCFG)) {
         scmd_printk(KERN_INFO, xs, "%s\n", buf);
     } else if (level & ISP_LOGWARN) {
         scmd_printk(KERN_WARNING, xs, "%s\n", buf);
