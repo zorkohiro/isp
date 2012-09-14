@@ -409,13 +409,7 @@ struct isposinfo {
 
 #define ISP_FC_SCRLEN   0x1000
 
-#define FCP_NEXT_CRN(isp, cmd, rslt, chan, tgt, lun)    \
-        if ((isp)->isp_osinfo.crn == 0) {               \
-                (isp)->isp_osinfo.crn = 1;              \
-        }                                               \
-        (rslt) = (isp)->isp_osinfo.crn++
-
-
+#define FCP_NEXT_CRN    isp_fcp_next_crn
 
 #define ISP_MEMZERO(b, a)   memset(b, 0, a)
 #define ISP_MEMCPY          memcpy
@@ -537,11 +531,39 @@ struct isposinfo {
 
 #define XS_NOERR(xs)    host_byte((xs)->result) == DID_OK
 
-#define XS_INITERR(xs)  (xs)->result = 0, (xs)->SCp.Status = 0, (xs)->SCp.have_data_in = 0
-
-#define XS_SAVE_SENSE(Cmnd, s, l)   memcpy(XS_SNSP(Cmnd), s, ISP_MIN(XS_SNSLEN(Cmnd), l)), (Cmnd)->SCp.have_data_in = 1
+#define XS_INITERR(xs)  (xs)->result = 0, (xs)->SCp.Status = 0, (xs)->SCp.have_data_in = 0, (xs)->SCp.sent_command = 0
 
 #define XS_SENSE_VALID(Cmnd)        ((Cmnd)->SCp.have_data_in != 0)
+
+#define XS_CUR_SNSLEN(Cmnd)  (Cmnd)->SCp.have_data_in
+#define XS_TOT_SNSLEN(Cmnd)  (Cmnd)->SCp.sent_command
+/* save sense from sense_ptr. The total expected sense length is totslen. The current segment is slen */
+#define XS_SAVE_SENSE(xs, sp, totslen, slen) \
+do {                                    \
+    uint32_t clen = slen;               \
+    uint32_t tlen = totslen;            \
+    if (tlen > SCSI_SENSE_BUFFERSIZE)   \
+        tlen = SCSI_SENSE_BUFFERSIZE;   \
+    if (clen > tlen)                    \
+        clen = tlen;                    \
+    (xs)->SCp.have_data_in = clen;      \
+    (xs)->SCp.sent_command = tlen;      \
+    memcpy(xs->sense_buffer, sp, clen); \
+} while (0)
+
+#define XS_SENSE_APPEND(xs, xsnsp, xsnsl)                                   \
+do {                                                                        \
+    uint32_t amt = xsnsl;                                                   \
+    uint32_t aml = (xs)->SCp.sent_command - (xs)->SCp.have_data_in;         \
+    if (amt > aml)                                                          \
+        amt = aml;                                                          \
+    if (aml) {                                                              \
+        memcpy(&(xs)->sense_buffer[(xs)->SCp.have_data_in], xsnsp, aml);    \
+        (xs)->SCp.have_data_in += aml;                                      \
+    }                                                                       \
+} while (0)
+
+
 
 #define XS_SET_STATE_STAT(a, b, c)
 
@@ -934,6 +956,14 @@ isp_get_dma_seg(ispds_t *dsp, struct scatterlist *sg, uint32_t sgidx)
     sg += sgidx;
     dsp->ds_base = sg_dma_address(sg);
     dsp->ds_count = sg_dma_len(sg);
+}
+
+static ISP_INLINE int
+isp_fcp_next_crn(ispsoftc_t *isp, uint8_t *crnp, XS_T *cmd)
+{
+    if (isp->isp_osinfo.crn == 0)
+        isp->isp_osinfo.crn = 1;
+    return (isp->isp_osinfo.crn++);
 }
 
 /*

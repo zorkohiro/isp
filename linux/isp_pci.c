@@ -1834,7 +1834,7 @@ isp_pci_dmasetup(ispsoftc_t *isp, Scsi_Cmnd *Cmnd, void *fqe)
         XS_SETERR(Cmnd, HBA_BOTCH);
         return (CMD_COMPLETE);
     }
-    ret = isp_send_cmd(isp, fqe, sg, nseg, XS_XFRLEN(Cmnd), ddir);
+    ret = isp_send_cmd(isp, fqe, sg, nseg, XS_XFRLEN(Cmnd), ddir, NULL);
     if (ret == CMD_QUEUED) {
         int bin;
         if (XS_XFRLEN(Cmnd) <= 1024) {

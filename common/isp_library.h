@@ -1,4 +1,4 @@
-/* $FreeBSD: head/sys/dev/isp/isp_library.h 204397 2010-02-27 05:41:23Z mjacob $ */
+/* $FreeBSD: user/mjacob/sys/dev/isp/isp_library.h 238999 2012-08-03 03:30:49Z mjacob $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
@@ -36,7 +36,7 @@
  * stuff figured out, you can make all the code in one spot.
  */
 typedef enum { ISP_TO_DEVICE, ISP_FROM_DEVICE, ISP_NOXFR} isp_ddir_t;
-int isp_send_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t);
+int isp_send_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, ispds64_t *);
 
 /*
  * Handle management functions.
@@ -107,6 +107,7 @@ void isp_put_24xx_abrt(ispsoftc_t *, isp24xx_abrt_t *, isp24xx_abrt_t *);
 void isp_put_cont_req(ispsoftc_t *, ispcontreq_t *, ispcontreq_t *);
 void isp_put_cont64_req(ispsoftc_t *, ispcontreq64_t *, ispcontreq64_t *);
 void isp_get_response(ispsoftc_t *, ispstatusreq_t *, ispstatusreq_t *);
+void isp_get_cont_response(ispsoftc_t *, ispstatus_cont_t *, ispstatus_cont_t *);
 void isp_get_24xx_response(ispsoftc_t *, isp24xx_statusreq_t *, isp24xx_statusreq_t *);
 void isp_get_24xx_abrt(ispsoftc_t *, isp24xx_abrt_t *, isp24xx_abrt_t *);
 void isp_get_rio1(ispsoftc_t *, isp_rio1_t *, isp_rio1_t *);
@@ -140,10 +141,12 @@ void isp_get_ga_nxt_response(ispsoftc_t *, sns_ga_nxt_rsp_t *, sns_ga_nxt_rsp_t 
 void isp_get_els(ispsoftc_t *, els_t *, els_t *);
 void isp_put_els(ispsoftc_t *, els_t *, els_t *);
 void isp_get_fc_hdr(ispsoftc_t *, fc_hdr_t *, fc_hdr_t *);
+void isp_put_fc_hdr(ispsoftc_t *, fc_hdr_t *, fc_hdr_t *);
 void isp_get_fcp_cmnd_iu(ispsoftc_t *, fcp_cmnd_iu_t *, fcp_cmnd_iu_t *);
 void isp_put_rft_id(ispsoftc_t *, rft_id_t *, rft_id_t *);
 void isp_get_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 void isp_put_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
+void isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *, fcp_rsp_iu_t *);
 
 #define ISP_HANDLE_MASK  0x7fff
 

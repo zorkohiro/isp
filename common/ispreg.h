@@ -1,4 +1,4 @@
-/* $FreeBSD: head/sys/dev/isp/ispreg.h 204397 2010-02-27 05:41:23Z mjacob $ */
+/* $FreeBSD: user/mjacob/sys/dev/isp/ispreg.h 238999 2012-08-03 03:30:49Z mjacob $ */
 /*-
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
