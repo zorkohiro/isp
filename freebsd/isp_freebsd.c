@@ -28,7 +28,7 @@
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/mjacob/sys/dev/isp/isp_freebsd.c 239950 2012-08-31 14:06:33Z mjacob $");
+__FBSDID("$FreeBSD: head/sys/dev/isp/isp_freebsd.c 247356 2013-02-26 21:37:12Z mjacob $");
 #include <dev/isp/isp_freebsd.h>
 #include <sys/unistd.h>
 #include <sys/kthread.h>
@@ -1735,10 +1735,10 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 
 			/*
 			 * Mode 1, status, no data. Only possible when we are sending status, have
-			 * no data to transfer, and any sense length can fit in the ct7_entry.
+			 * no data to transfer, and any sense data can fit into a ct7_entry_t.
 			 *
-			 * Mode 2, status, no data. We have to use this in the case sense data
-			 * won't fit into a ct7_entry_t.
+			 * Mode 2, status, no data. We have to use this in the case that
+			 * the sense data won't fit into a ct7_entry_t.
 			 *
 			 */
 			if (sendstatus && xfrlen == 0) {
@@ -1889,7 +1889,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			 * Mode 1, status, no data. Only possible when we are sending status, have
 			 * no data to transfer, and the sense length can fit in the ct7_entry.
 			 *
-			 * Mode 2, status, no data. We have to use this in the case the the response
+			 * Mode 2, status, no data. We have to use this in the case the response
 			 * length won't fit into a ct2_entry_t.
 			 *
 			 * We'll fill out this structure with information as if this were a
@@ -4139,8 +4139,6 @@ isp_target_thread(ispsoftc_t *isp, int chan)
 		isp_prt(isp, ISP_LOGERR, "%s: could not allocate path", __func__);
 		return;
 	}
-
-	ccb = xpt_alloc_ccb();
 
 	ISP_LOCK(isp);
 	status = cam_periph_alloc(isptargctor, NULL, isptargdtor, isptargstart, "isptarg", CAM_PERIPH_BIO, wpath, NULL, 0, softc);
