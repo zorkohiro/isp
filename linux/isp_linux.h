@@ -71,8 +71,8 @@
 #define KERNEL_VERSION(v,p,s)   (((v)<<16)+(p<<8)+s)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0) || LINUX_VERSION_CODE >=  KERNEL_VERSION(2,7,0)
-#error  "Only Linux 2.5/2.6 kernels are supported with this driver"
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#error  "Only Linux 2.6 and later kernels are supported with this driver"
 #endif
 
 #ifndef UNUSED_PARAMETER
@@ -100,7 +100,6 @@
 #include <asm/irq.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/interrupt.h>
