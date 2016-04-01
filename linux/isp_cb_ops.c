@@ -333,7 +333,11 @@ isplinux_proc_info(struct Scsi_Host *shp, char *buf, char **st, off_t off, int l
 
 static int isp_open(struct inode *, struct file *);
 static int isp_close(struct inode *, struct file *);
+#if defined(HAVE_UNLOCKED_IOCTL) || defined(HAVE_COMPAT_IOCTL)
+static long isp_ioctl(struct file *, unsigned int, unsigned long);
+#else
 static int isp_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
+#endif
 
 dev_t isp_dev;
 struct cdev isp_cdev = {
@@ -348,7 +352,16 @@ struct file_operations isp_ioctl_operations = {
  .owner     =   THIS_MODULE,
  .open      =   isp_open,
  .release   =   isp_close,
+#if defined(HAVE_UNLOCKED_IOCTL) || defined(HAVE_COMPAT_IOCTL)
+#ifdef  HAVE_UNLOCKED_IOCTL
+ .unlocked_ioctl = isp_ioctl,
+#endif
+#ifdef  HAVE_COMPAT_IOCTL
+ .compat_ioctl = isp_ioctl,
+#endif
+#else
  .ioctl     =   isp_ioctl,
+#endif
 };
 
 static int
@@ -383,8 +396,13 @@ isp_close(struct inode *ip, struct file *fp)
     return (0);
 }
 
+#if defined(HAVE_UNLOCKED_IOCTL) || defined(HAVE_COMPAT_IOCTL)
+static long
+isp_ioctl(struct file *fp, unsigned int c, unsigned long arg)
+#else
 static int
 isp_ioctl(struct inode *ip, struct file *fp, unsigned int c, unsigned long arg)
+#endif
 {
     ispsoftc_t *isp = fp->private_data;
     int i, rv, inarg, outarg;

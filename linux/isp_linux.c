@@ -62,7 +62,6 @@
 
 #define    ISP_MODULE    1
 #include "isp_linux.h"
-#include "linux/smp_lock.h"
 
 static int isp_task_thread(void *);
 
@@ -2057,7 +2056,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
             CALL_PARENT_TMD(isp, tmd, QOUT_TMD_START);
         } else {
             tmd->cd_portid = PORT_NONE;
-            isp_add_wwn_entry(isp, 0, tmd->cd_iid, tmd->cd_nphdl, PORT_ANY);
+            isp_add_wwn_entry(isp, 0, tmd->cd_iid, tmd->cd_nphdl, PORT_ANY, 0);
             (void) isp_thread_event(isp, ISP_THREAD_FINDPORTID, tmd, 0, __func__, __LINE__);
         }
     }
@@ -2136,7 +2135,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
          * If we're not in the port database, do a tentative entry.
          */
         isp_prt(isp, ISP_LOGTINFO, "%s: [RX_ID 0x%x] D_ID 0x%06x found on Chan %d for S_ID 0x%06x wasn't in PDB already", __func__, aep->at_rxid, did, chan, sid);
-        isp_add_wwn_entry(isp, chan, INI_NONE, NIL_HANDLE, sid);
+        isp_add_wwn_entry(isp, chan, INI_NONE, NIL_HANDLE, sid, 0);
     }
 
     /*
@@ -3418,7 +3417,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
                         } else {
                             wwn = INI_NONE;
                         }
-                        isp_add_wwn_entry(isp, ISP_GET_VPIDX(isp, inot->in_vpidx), wwn, nphdl, portid);
+                        isp_add_wwn_entry(isp, ISP_GET_VPIDX(isp, inot->in_vpidx), wwn, nphdl, portid, 0);
                         break;
                     case PRLI:
                         msg = "PRLI";

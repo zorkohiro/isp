@@ -1442,7 +1442,7 @@ typedef struct {
 	uint16_t	snscb_addr[4];	/* response buffer address */
 	uint16_t	snscb_sblen;	/* subcommand buffer length (words) */
 	uint16_t	snscb_reserved1;
-	uint16_t	snscb_data[1];	/* variable data */
+	uint16_t	snscb_data[0];	/* variable data */
 } sns_screq_t;	/* Subcommand Request Structure */
 
 typedef struct {
