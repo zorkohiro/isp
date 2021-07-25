@@ -1,6 +1,6 @@
 # $Id: Makefile,v 1.21 2009/06/07 05:20:58 mjacob Exp $
 #
-# Copyright (c) 2006-2008 by Matthew Jacob
+# Copyright (c) 2006-2008, 2021by Matthew Jacob
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of The Version 2 GNU General Public License as published
@@ -22,7 +22,7 @@
 # Menlo Park, CA 94025
 # USA
 #
-# gpl at feral com
+# gpl at feralsw com
 M			?=	$(CURDIR)
 TDIR			=	$(M)/../../
 COM_OBJ 		=	isp.o isp_library.o isp_target.o

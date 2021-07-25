@@ -1,6 +1,6 @@
 /* $Id: isp_getpdb.c,v 1.17 2009/02/01 23:49:57 mjacob Exp $ */
 /*
- *  Copyright (c) 1997-2008 by Matthew Jacob
+ *  Copyright (c) 1997-2008, 2021by Matthew Jacob
  *  All rights reserved.
  * 
  *  Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@
  *  Menlo Park, CA 94025
  *  USA
  * 
- *  gplbsd at feral com
+ *  gplbsd at feralsw com
  */
 #include <unistd.h>
 #include <stdlib.h>

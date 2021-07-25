@@ -1,6 +1,6 @@
 # $Id: Makefile,v 1.23 2008/06/16 23:54:25 mjacob Exp $
 #
-#  Copyright (c) 1997-2008 by Matthew Jacob
+#  Copyright (c) 1997-2008, 2021by Matthew Jacob
 #  All rights reserved.
 # 
 #  Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@
 #  Menlo Park, CA 94025
 #  USA
 # 
-#  isplicense at feral com
+#  isplicense at feralsw com
 #
 # Qlogic ISP Host Adapter Build File
 #

@@ -24,7 +24,7 @@
 # Menlo Park, CA 94025
 # USA
 #
-# gpl at feral com
+# gpl at feralsw com
 #
 ifndef KDIR
 LVERS		=	$(shell uname -r)

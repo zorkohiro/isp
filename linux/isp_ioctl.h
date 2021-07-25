@@ -50,7 +50,7 @@
  *  Menlo Park, CA 94025
  *  USA
  *
- *  gplbsd at feral com
+ *  gplbsd at feralsw com
  */
 /*
  * ioctl definitions for Qlogic FC/SCSI HBA driver

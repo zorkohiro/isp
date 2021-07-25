@@ -1,6 +1,6 @@
 /* $Id: isp_ioctl.h,v 1.22 2008/03/12 22:59:04 mjacob Exp $ */
 /*
- *  Copyright (c) 1997-2008 by Matthew Jacob
+ *  Copyright (c) 1997-2008, 2021by Matthew Jacob
  *  All rights reserved.
  * 
  *  Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@
  *  Menlo Park, CA 94025
  *  USA
  * 
- *  gplbsd at feral com
+ *  gplbsd at feralsw com
  */
 /*
  * ioctl definitions for Qlogic FC/SCSI HBA driver

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2008 by Matthew Jacob
+ * Copyright (c) 1997-2008, 2021by Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@
  * Menlo Park, CA 94025
  * USA
  *
- * gplbsd at feral com
+ * gplbsd at feralsw com
  */
 #include <sys/types.h>
 #include <sys/stat.h>

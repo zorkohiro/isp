@@ -1,6 +1,6 @@
 /* $Id: isp_scsa.h,v 1.13 2008/04/15 22:41:09 mjacob Exp $ */
 /*
- *  Copyright (c) 1997-2008 by Matthew Jacob
+ *  Copyright (c) 1997-2008, 2021by Matthew Jacob
  *  All rights reserved.
  * 
  *  Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@
  *  Menlo Park, CA 94025
  *  USA
  * 
- *  gplbsd at feral com
+ *  gplbsd at feralsw com
  */
 #ifndef _ISP_SCSA_H
 #define	_ISP_SCSA_H

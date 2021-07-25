@@ -1,6 +1,6 @@
 /* $Id: isp_solaris.c,v 1.33 2009/02/14 00:09:02 mjacob Exp $ */
 /*
- * Copyright (c) 1997-2008 by Matthew Jacob All rights reserved.
+ * Copyright (c) 1997-2008, 2021by Matthew Jacob All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -45,7 +45,7 @@
  * 
  * Matthew Jacob Feral Software 421 Laurel Avenue Menlo Park, CA 94025 USA
  * 
- * gplbsd at feral com
+ * gplbsd at feralsw com
  */
 /*
  * General Solaris support routines for Qlogic FC/SCSI/IP Host Adapter Driver
